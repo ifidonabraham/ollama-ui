@@ -596,11 +596,45 @@ ${projectInstructions}`;
             if (thinkText) send("thinking", { text: thinkText });
           }
 
-          if (message?.tool_calls && message.tool_calls.length > 0) {
-            send("thinking", { text: `Running ${message.tool_calls.length} action(s)…` });
+          // Some models (e.g. qwen2.5-coder) return tool calls as JSON text in
+          // content instead of the structured tool_calls array. Parse it here.
+          let effectiveToolCalls = message?.tool_calls;
+          if ((!effectiveToolCalls || effectiveToolCalls.length === 0) && messageContent) {
+            // Try single JSON object: {"name":"tool","arguments":{...}}
+            const singleMatch = messageContent.match(/\{[\s\S]*"name"\s*:\s*"(\w+)"[\s\S]*\}/);
+            if (singleMatch) {
+              try {
+                const parsed = JSON.parse(singleMatch[0]);
+                if (parsed.name) {
+                  effectiveToolCalls = [{
+                    function: { name: parsed.name, arguments: parsed.arguments ?? parsed.parameters ?? {} }
+                  }];
+                  messageContent = ""; // consumed as tool call
+                }
+              } catch { /* not valid JSON */ }
+            }
+            // Try array: [{"name":"tool","arguments":{...}}]
+            if (!effectiveToolCalls || effectiveToolCalls.length === 0) {
+              const arrayMatch = messageContent.match(/\[[\s\S]*\]/);
+              if (arrayMatch) {
+                try {
+                  const parsed = JSON.parse(arrayMatch[0]);
+                  if (Array.isArray(parsed) && parsed[0]?.name) {
+                    effectiveToolCalls = parsed.map((t: { name: string; arguments?: object; parameters?: object }) => ({
+                      function: { name: t.name, arguments: t.arguments ?? t.parameters ?? {} }
+                    }));
+                    messageContent = "";
+                  }
+                } catch { /* not valid JSON */ }
+              }
+            }
+          }
+
+          if (effectiveToolCalls && effectiveToolCalls.length > 0) {
+            send("thinking", { text: `Running ${effectiveToolCalls.length} action(s)…` });
             loopMessages.push({ role: "assistant", content: messageContent });
 
-            for (const tc of message.tool_calls) {
+            for (const tc of effectiveToolCalls) {
               const toolName = tc.function?.name ?? tc.name;
               const toolArgs = tc.function?.arguments ?? tc.arguments ?? {};
               const parsedArgs = typeof toolArgs === "string" ? JSON.parse(toolArgs) : toolArgs;
