@@ -10,7 +10,6 @@
 !.yarn/releases
 !.yarn/versions
 
-# testing
 /coverage
 
 # next.js
@@ -32,6 +31,9 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+
+# local data (SQLite database — do not commit)
+.data/
 
 # vercel
 .vercel

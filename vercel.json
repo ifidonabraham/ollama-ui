@@ -1,0 +1,16 @@
+{
+  "buildCommand": "npm run build",
+  "outputDirectory": ".next",
+  "framework": "nextjs",
+  "functions": {
+    "app/api/agent/route.ts": {
+      "maxDuration": 60
+    },
+    "app/api/chat/route.ts": {
+      "maxDuration": 60
+    }
+  },
+  "env": {
+    "OLLAMA_HOST": "@ollama_host"
+  }
+}
