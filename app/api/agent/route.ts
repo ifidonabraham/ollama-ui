@@ -7,24 +7,57 @@ import { resolveOllamaHost, isCloudConfigured } from "@/lib/ollama";
 
 const execAsync = promisify(exec);
 
-// ── Vision / model helpers ─────────────────────────────────────────────────
+// ── Model capability helpers ───────────────────────────────────────────────
 
-const VISION_ONLY_PREFIXES = ["llava", "moondream", "minicpm-v", "bakllava", "cogvlm"];
-function isVisionOnly(model: string) {
-  return VISION_ONLY_PREFIXES.some((p) => model.toLowerCase().startsWith(p));
-}
+const VISION_PREFIXES  = ["llava", "moondream", "minicpm-v", "bakllava", "cogvlm"];
+const CODER_KEYWORDS   = ["coder", "code", "deepseek", "starcoder", "codellama"];
+const VISION_ONLY      = ["llava", "moondream", "minicpm-v", "bakllava", "cogvlm"];
 
-async function getAvailableModels(ollamaBase: string): Promise<string[]> {
+function isVision(m: string)    { return VISION_PREFIXES.some(p => m.toLowerCase().startsWith(p)); }
+function isVisionOnly(m: string){ return VISION_ONLY.some(p => m.toLowerCase().startsWith(p)); }
+function isCoder(m: string)     { return CODER_KEYWORDS.some(k => m.toLowerCase().includes(k)); }
+
+async function getAvailableModels(base: string): Promise<string[]> {
   try {
-    const res = await fetch(`${ollamaBase}/api/tags`, { cache: "no-store" });
+    const res = await fetch(`${base}/api/tags`, { cache: "no-store" });
     const data = await res.json();
     return (data.models ?? []).map((m: { name: string }) => m.name);
   } catch { return []; }
 }
 
-async function unloadModel(model: string, ollamaBase: string): Promise<void> {
+/**
+ * Pick the best model for a given role, from the available list.
+ * Falls back gracefully if a specialized model isn't available.
+ */
+function pickModel(
+  role: "vision" | "coder" | "general",
+  requested: string,
+  all: string[]
+): string {
+  if (role === "vision") {
+    // Prefer explicitly requested if it's a vision model
+    if (isVision(requested)) return requested;
+    return all.find(m => isVision(m)) ?? requested;
+  }
+  if (role === "coder") {
+    if (!isVisionOnly(requested)) return requested; // use what user picked
+    // If user is on a vision-only model, swap to best coder
+    return (
+      all.find(m => isCoder(m) && !isVisionOnly(m)) ??
+      all.find(m => !isVisionOnly(m)) ??
+      requested
+    );
+  }
+  // general — avoid vision-only
+  if (!isVisionOnly(requested)) return requested;
+  return all.find(m => !isVisionOnly(m)) ?? requested;
+}
+
+// ── RAM management ─────────────────────────────────────────────────────────
+
+async function unloadModel(model: string, base: string) {
   try {
-    await fetch(`${ollamaBase}/api/generate`, {
+    await fetch(`${base}/api/generate`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ model, keep_alive: 0 }),
@@ -32,58 +65,24 @@ async function unloadModel(model: string, ollamaBase: string): Promise<void> {
   } catch { /* non-fatal */ }
 }
 
-async function getLoadedModels(ollamaBase: string): Promise<string[]> {
+async function getLoadedModels(base: string): Promise<string[]> {
   try {
-    const res = await fetch(`${ollamaBase}/api/ps`, { cache: "no-store" });
+    const res = await fetch(`${base}/api/ps`, { cache: "no-store" });
     const data = await res.json();
     return (data.models ?? []).map((m: { name: string }) => m.name);
   } catch { return []; }
 }
 
-async function unloadOthers(keepModel: string, ollamaBase: string): Promise<void> {
-  const loaded = await getLoadedModels(ollamaBase);
-  await Promise.all(
-    loaded
-      .filter((m) => m !== keepModel)
-      .map((m) => unloadModel(m, ollamaBase))
-  );
-}
-
-function pickAgentModel(requested: string, allModels: string[]): string {
-  if (requested.includes("14b")) {
-    const faster =
-      allModels.find((m) => m.includes("qwen3") && !isVisionOnly(m)) ??
-      allModels.find((m) => m.toLowerCase().includes("coder") && m.includes("7b") && !isVisionOnly(m));
-    if (faster) return faster;
-  }
-  return requested;
-}
-
-// ── Diff utility ───────────────────────────────────────────────────────────
-
-function computeDiff(before: string, after: string): string {
-  const beforeLines = before.split("\n");
-  const afterLines  = after.split("\n");
-  const lines: string[] = [];
-  const maxLen = Math.max(beforeLines.length, afterLines.length);
-  for (let i = 0; i < maxLen; i++) {
-    const b = beforeLines[i];
-    const a = afterLines[i];
-    if (b === a)        lines.push(`  ${b ?? ""}`);
-    else if (b == null) lines.push(`+ ${a}`);
-    else if (a == null) lines.push(`- ${b}`);
-    else { lines.push(`- ${b}`); lines.push(`+ ${a}`); }
-  }
-  return lines.join("\n");
+async function swapModel(from: string | null, to: string, base: string) {
+  if (from && from !== to) await unloadModel(from, base);
+  // no need to explicitly load — first inference call does it
 }
 
 // ── Git helpers ────────────────────────────────────────────────────────────
 
 async function isGitRepo(dir: string): Promise<boolean> {
-  try {
-    await execAsync("git rev-parse --is-inside-work-tree", { cwd: dir, shell: "powershell.exe" });
-    return true;
-  } catch { return false; }
+  try { await execAsync("git rev-parse --is-inside-work-tree", { cwd: dir, shell: "powershell.exe" }); return true; }
+  catch { return false; }
 }
 
 async function autoCommit(filePath: string, description: string, cwd: string): Promise<string> {
@@ -91,10 +90,7 @@ async function autoCommit(filePath: string, description: string, cwd: string): P
     if (!await isGitRepo(cwd)) return "";
     const rel = path.relative(cwd, filePath).replace(/\\/g, "/");
     await execAsync(`git add "${rel}"`, { cwd, shell: "powershell.exe" });
-    const { stdout } = await execAsync(
-      `git commit -m "ai: ${description.replace(/"/g, "'").slice(0, 72)}"`,
-      { cwd, shell: "powershell.exe" }
-    );
+    const { stdout } = await execAsync(`git commit -m "ai: ${description.replace(/"/g, "'").slice(0, 72)}"`, { cwd, shell: "powershell.exe" });
     const sha = stdout.match(/\[[\w\s]+([a-f0-9]{7})\]/)?.[1] ?? "";
     return sha ? `git: committed ${sha}` : "";
   } catch { return ""; }
@@ -112,13 +108,26 @@ function loadProjectInstructions(workspacePath?: string): string {
   ];
   for (const p of candidates) {
     if (fs.existsSync(p)) {
-      try {
-        const content = fs.readFileSync(p, "utf-8").slice(0, 4000);
-        return `\n\n# Project Instructions (from ${path.basename(p)})\n${content}`;
-      } catch { /* skip */ }
+      try { return `\n\n# Project Instructions (from ${path.basename(p)})\n${fs.readFileSync(p, "utf-8").slice(0, 4000)}`; }
+      catch { /* skip */ }
     }
   }
   return "";
+}
+
+// ── Diff utility ───────────────────────────────────────────────────────────
+
+function computeDiff(before: string, after: string): string {
+  const bL = before.split("\n"), aL = after.split("\n");
+  const lines: string[] = [];
+  for (let i = 0; i < Math.max(bL.length, aL.length); i++) {
+    const b = bL[i], a = aL[i];
+    if (b === a) lines.push(`  ${b ?? ""}`);
+    else if (b == null) lines.push(`+ ${a}`);
+    else if (a == null) lines.push(`- ${b}`);
+    else { lines.push(`- ${b}`); lines.push(`+ ${a}`); }
+  }
+  return lines.join("\n");
 }
 
 // ── Tool definitions ───────────────────────────────────────────────────────
@@ -128,27 +137,21 @@ const TOOLS = [
     type: "function",
     function: {
       name: "read_file",
-      description: "Read the full contents of a file. Use this to understand existing code before editing it.",
-      parameters: {
-        type: "object",
-        properties: {
-          path: { type: "string", description: "Absolute or relative file path." },
-        },
-        required: ["path"],
-      },
+      description: "Read the full contents of a file.",
+      parameters: { type: "object", properties: { path: { type: "string" } }, required: ["path"] },
     },
   },
   {
     type: "function",
     function: {
       name: "write_file",
-      description: "Create a NEW file or completely replace an existing file.",
+      description: "Create or fully replace a file.",
       parameters: {
         type: "object",
         properties: {
-          path:        { type: "string", description: "File path to write." },
-          content:     { type: "string", description: "Complete file content." },
-          description: { type: "string", description: "Short description for the git commit message." },
+          path:        { type: "string" },
+          content:     { type: "string" },
+          description: { type: "string" },
         },
         required: ["path", "content"],
       },
@@ -158,14 +161,14 @@ const TOOLS = [
     type: "function",
     function: {
       name: "patch_file",
-      description: "Edit an existing file by replacing a specific block of text. Prefer this over write_file for small changes.",
+      description: "Edit a file by replacing a specific block of text. Prefer over write_file for small changes.",
       parameters: {
         type: "object",
         properties: {
-          path:        { type: "string", description: "File path to edit." },
-          search:      { type: "string", description: "Exact text to find in the file (must match exactly, including whitespace)." },
-          replace:     { type: "string", description: "Text to replace it with." },
-          description: { type: "string", description: "Short description for the git commit message." },
+          path:        { type: "string" },
+          search:      { type: "string", description: "Exact text to find (must match exactly including whitespace)." },
+          replace:     { type: "string" },
+          description: { type: "string" },
         },
         required: ["path", "search", "replace"],
       },
@@ -175,26 +178,20 @@ const TOOLS = [
     type: "function",
     function: {
       name: "list_dir",
-      description: "List files and folders at a path.",
-      parameters: {
-        type: "object",
-        properties: {
-          path: { type: "string", description: "Directory path." },
-        },
-        required: ["path"],
-      },
+      description: "List files and folders in a directory.",
+      parameters: { type: "object", properties: { path: { type: "string" } }, required: ["path"] },
     },
   },
   {
     type: "function",
     function: {
       name: "run_command",
-      description: "Run a PowerShell command. Use for: creating directories, installing packages, running tests/lint, git operations.",
+      description: "Run a PowerShell command on the user's computer. Use for creating directories, running builds, git operations, installing packages, etc.",
       parameters: {
         type: "object",
         properties: {
-          command: { type: "string", description: "PowerShell command to execute." },
-          cwd:     { type: "string", description: "Working directory (optional, defaults to workspace)." },
+          command: { type: "string" },
+          cwd:     { type: "string", description: "Working directory (optional)." },
         },
         required: ["command"],
       },
@@ -205,13 +202,7 @@ const TOOLS = [
     function: {
       name: "delete_file",
       description: "Delete a file.",
-      parameters: {
-        type: "object",
-        properties: {
-          path: { type: "string", description: "Path of file to delete." },
-        },
-        required: ["path"],
-      },
+      parameters: { type: "object", properties: { path: { type: "string" } }, required: ["path"] },
     },
   },
   {
@@ -222,9 +213,9 @@ const TOOLS = [
       parameters: {
         type: "object",
         properties: {
-          pattern:   { type: "string", description: "Text or regex pattern to search for." },
-          directory: { type: "string", description: "Directory to search in." },
-          extension: { type: "string", description: "File extension filter e.g. .ts, .py (optional)." },
+          pattern:   { type: "string" },
+          directory: { type: "string" },
+          extension: { type: "string", description: "File extension filter e.g. .ts (optional)." },
         },
         required: ["pattern", "directory"],
       },
@@ -240,15 +231,8 @@ const BLOCKED = [
   /del\s+\/[sqa]/i, /shutdown/i, /Restart-Computer/i,
 ];
 
-// ── Resolve file path ──────────────────────────────────────────────────────
-// When the agent gives a relative path, resolve it against the workspace.
-// If it gives an absolute path, use it as-is.
-
-function resolveFilePath(filePath: string, workspacePath: string): string {
-  if (path.isAbsolute(filePath)) {
-    return filePath;
-  }
-  return path.resolve(workspacePath, filePath);
+function resolveFilePath(filePath: string, cwd: string): string {
+  return path.isAbsolute(filePath) ? filePath : path.resolve(cwd, filePath);
 }
 
 // ── Tool execution ─────────────────────────────────────────────────────────
@@ -256,102 +240,74 @@ function resolveFilePath(filePath: string, workspacePath: string): string {
 async function executeTool(
   name: string,
   args: Record<string, string>,
-  workspacePath: string,
+  cwd: string,
   send: (event: string, data: object) => void
 ): Promise<string> {
-  // cwd defaults to workspacePath — this is the key fix for tool execution
-  const cwd = workspacePath || "C:\\Users\\PC";
-
   try {
     switch (name) {
 
       case "read_file": {
-        const resolved = resolveFilePath(args.path, cwd);
-        if (!fs.existsSync(resolved)) return `Error: File not found: ${resolved}`;
-        const stat = fs.statSync(resolved);
+        const r = resolveFilePath(args.path, cwd);
+        if (!fs.existsSync(r)) return `Error: File not found: ${r}`;
+        const stat = fs.statSync(r);
         if (stat.size > 200 * 1024) return `Error: File too large (${Math.round(stat.size / 1024)}KB). Max 200KB.`;
-        return fs.readFileSync(resolved, "utf-8");
+        return fs.readFileSync(r, "utf-8");
       }
 
       case "write_file": {
-        const resolved = resolveFilePath(args.path, cwd);
-        const before = fs.existsSync(resolved) ? fs.readFileSync(resolved, "utf-8") : null;
-        const after  = args.content;
-
-        if (before !== null) {
-          const diff = computeDiff(before, after);
-          send("file_diff", { path: resolved, before, after, diff });
-        }
-
-        fs.mkdirSync(path.dirname(resolved), { recursive: true });
-        fs.writeFileSync(resolved, after, "utf-8");
-
-        let lintResult = "";
-        const ext = path.extname(resolved).toLowerCase();
+        const r = resolveFilePath(args.path, cwd);
+        const before = fs.existsSync(r) ? fs.readFileSync(r, "utf-8") : null;
+        if (before !== null) send("file_diff", { path: r, before, after: args.content, diff: computeDiff(before, args.content) });
+        fs.mkdirSync(path.dirname(r), { recursive: true });
+        fs.writeFileSync(r, args.content, "utf-8");
+        // Auto-lint TS/JS files
+        const ext = path.extname(r).toLowerCase();
         if ([".ts", ".tsx", ".js", ".jsx"].includes(ext)) {
           try {
-            const { stdout, stderr } = await execAsync(
-              `npx eslint "${resolved}" --fix --max-warnings=0 2>&1`,
-              { cwd, timeout: 15000, shell: "powershell.exe" }
-            );
-            const out = (stdout + stderr).trim();
-            if (out) lintResult = `\nLint: ${out.slice(0, 300)}`;
-          } catch { /* lint failure is non-fatal */ }
+            await execAsync(`npx eslint "${r}" --fix --max-warnings=0 2>&1`, { cwd, timeout: 15000, shell: "powershell.exe" });
+          } catch { /* lint failure non-fatal */ }
         }
-
-        const desc = args.description || `update ${path.basename(resolved)}`;
-        const sha = await autoCommit(resolved, desc, cwd);
-        return `Written: ${resolved}${sha ? `\n${sha}` : ""}${lintResult}`;
+        const sha = await autoCommit(r, args.description || `update ${path.basename(r)}`, cwd);
+        return `Written: ${r}${sha ? `\n${sha}` : ""}`;
       }
 
       case "patch_file": {
-        const resolved = resolveFilePath(args.path, cwd);
-        if (!fs.existsSync(resolved)) return `Error: File not found: ${resolved}`;
-
-        const before = fs.readFileSync(resolved, "utf-8");
+        const r = resolveFilePath(args.path, cwd);
+        if (!fs.existsSync(r)) return `Error: File not found: ${r}`;
+        let before = fs.readFileSync(r, "utf-8");
         let after: string;
-
         if (before.includes(args.search)) {
           after = before.replace(args.search, args.replace);
         } else {
-          // Try normalising line endings
-          const normalised = before.replace(/\r\n/g, "\n");
-          const searchNorm = args.search.replace(/\r\n/g, "\n");
-          if (!normalised.includes(searchNorm)) {
-            return `Error: Search text not found in ${resolved}. Make sure it matches exactly including whitespace.`;
-          }
-          after = normalised.replace(searchNorm, args.replace);
+          const norm = before.replace(/\r\n/g, "\n");
+          const sn   = args.search.replace(/\r\n/g, "\n");
+          if (!norm.includes(sn)) return `Error: Search text not found in ${r}. Make sure it matches exactly including whitespace.`;
+          before = norm;
+          after  = norm.replace(sn, args.replace);
         }
-
-        send("file_diff", { path: resolved, before, after, diff: computeDiff(before, after) });
-        fs.writeFileSync(resolved, after, "utf-8");
-
-        const desc = args.description || `patch ${path.basename(resolved)}`;
-        const sha = await autoCommit(resolved, desc, cwd);
-        return `Patched: ${resolved}${sha ? `\n${sha}` : ""}`;
+        send("file_diff", { path: r, before, after, diff: computeDiff(before, after) });
+        fs.writeFileSync(r, after, "utf-8");
+        const sha = await autoCommit(r, args.description || `patch ${path.basename(r)}`, cwd);
+        return `Patched: ${r}${sha ? `\n${sha}` : ""}`;
       }
 
       case "list_dir": {
-        // Allow listing the workspace root if path is "." or empty
-        const targetPath = args.path === "." || !args.path ? cwd : resolveFilePath(args.path, cwd);
-        if (!fs.existsSync(targetPath)) return `Error: Path not found: ${targetPath}`;
-        const entries = fs.readdirSync(targetPath, { withFileTypes: true });
+        const target = (!args.path || args.path === ".") ? cwd : resolveFilePath(args.path, cwd);
+        if (!fs.existsSync(target)) return `Error: Path not found: ${target}`;
         const ignored = new Set(["node_modules", ".git", ".next", "dist", "build"]);
-        return entries
-          .filter((e) => !ignored.has(e.name))
-          .map((e) => `${e.isDirectory() ? "📁" : "📄"} ${e.name}`)
+        return fs.readdirSync(target, { withFileTypes: true })
+          .filter(e => !ignored.has(e.name))
+          .map(e => `${e.isDirectory() ? "📁" : "📄"} ${e.name}`)
           .join("\n") || "(empty)";
       }
 
       case "run_command": {
         const cmd = args.command?.trim();
         if (!cmd) return "Error: No command provided";
-        if (BLOCKED.some((p) => p.test(cmd))) return "Error: Command blocked for safety.";
+        if (BLOCKED.some(p => p.test(cmd))) return "Error: Command blocked for safety.";
         const runCwd = args.cwd?.trim() || cwd;
         try {
-          const { stdout, stderr } = await execAsync(cmd, {
-            cwd: runCwd, timeout: 30_000, maxBuffer: 512 * 1024, shell: "powershell.exe",
-          });
+          const { stdout, stderr } = await execAsync(cmd, { cwd: runCwd, timeout: 30_000, maxBuffer: 512 * 1024, shell: "powershell.exe" });
           return [stdout?.trim(), stderr?.trim()].filter(Boolean).join("\n") || "(no output)";
         } catch (e: unknown) {
           const err = e as { stdout?: string; stderr?: string; message?: string };
@@ -360,47 +316,37 @@ async function executeTool(
       }
 
       case "delete_file": {
-        const resolved = resolveFilePath(args.path, cwd);
-        if (!fs.existsSync(resolved)) return `Error: Not found: ${resolved}`;
-        fs.rmSync(resolved, { recursive: false });
-        return `Deleted: ${resolved}`;
+        const r = resolveFilePath(args.path, cwd);
+        if (!fs.existsSync(r)) return `Error: Not found: ${r}`;
+        fs.rmSync(r, { recursive: false });
+        return `Deleted: ${r}`;
       }
 
       case "search_in_files": {
-        // If directory is relative or ".", resolve against workspace
-        const dir = args.directory === "." || !path.isAbsolute(args.directory)
-          ? path.resolve(cwd, args.directory || ".")
-          : path.resolve(args.directory);
-
+        const dir = (!args.directory || args.directory === ".") ? cwd : (path.isAbsolute(args.directory) ? args.directory : path.resolve(cwd, args.directory));
         if (!fs.existsSync(dir)) return `Error: Directory not found: ${dir}`;
         const ext = args.extension ?? "";
-        const pattern = args.pattern;
         const results: string[] = [];
-
         function walk(d: string, depth = 0) {
           if (depth > 5) return;
           const ignored = new Set(["node_modules", ".git", ".next", "dist", "build"]);
           try {
-            for (const entry of fs.readdirSync(d, { withFileTypes: true })) {
-              if (ignored.has(entry.name)) continue;
-              const full = path.join(d, entry.name);
-              if (entry.isDirectory()) { walk(full, depth + 1); continue; }
-              if (ext && !entry.name.endsWith(ext)) continue;
+            for (const e of fs.readdirSync(d, { withFileTypes: true })) {
+              if (ignored.has(e.name)) continue;
+              const full = path.join(d, e.name);
+              if (e.isDirectory()) { walk(full, depth + 1); continue; }
+              if (ext && !e.name.endsWith(ext)) continue;
               try {
-                const content = fs.readFileSync(full, "utf-8");
-                const lines = content.split("\n");
-                lines.forEach((line, i) => {
-                  if (line.toLowerCase().includes(pattern.toLowerCase())) {
+                fs.readFileSync(full, "utf-8").split("\n").forEach((line, i) => {
+                  if (line.toLowerCase().includes(args.pattern.toLowerCase()))
                     results.push(`${path.relative(dir, full)}:${i + 1}: ${line.trim()}`);
-                  }
                 });
               } catch { /* skip binary */ }
             }
           } catch { /* skip unreadable */ }
         }
-
         walk(dir);
-        if (results.length === 0) return `No matches for "${pattern}" in ${dir}`;
+        if (!results.length) return `No matches for "${args.pattern}" in ${dir}`;
         return results.slice(0, 50).join("\n") + (results.length > 50 ? `\n…and ${results.length - 50} more` : "");
       }
 
@@ -412,43 +358,156 @@ async function executeTool(
   }
 }
 
+// ── Parse tool calls from model response ───────────────────────────────────
+// Some models (qwen2.5-coder, older llava) return tool calls as JSON text
+// in message.content instead of structured tool_calls array.
+
+interface ToolCall {
+  function: { name: string; arguments: Record<string, string> };
+}
+
+function extractToolCalls(message: { tool_calls?: ToolCall[]; content?: string }): ToolCall[] {
+  // Standard format
+  if (message.tool_calls && message.tool_calls.length > 0) return message.tool_calls;
+
+  const content = message.content ?? "";
+  if (!content.trim()) return [];
+
+  // Try single object: {"name":"tool","arguments":{...}}
+  const singleMatch = content.match(/\{[\s\S]*?"name"\s*:\s*"(\w+)"[\s\S]*?\}/);
+  if (singleMatch) {
+    try {
+      const p = JSON.parse(singleMatch[0]);
+      if (p.name) return [{ function: { name: p.name, arguments: p.arguments ?? p.parameters ?? {} } }];
+    } catch { /* not JSON */ }
+  }
+
+  // Try array: [{"name":"tool","arguments":{...}}]
+  const arrayMatch = content.match(/\[[\s\S]*?\]/);
+  if (arrayMatch) {
+    try {
+      const p = JSON.parse(arrayMatch[0]);
+      if (Array.isArray(p) && p[0]?.name) {
+        return p.map((t: { name: string; arguments?: Record<string, string>; parameters?: Record<string, string> }) => ({
+          function: { name: t.name, arguments: t.arguments ?? t.parameters ?? {} }
+        }));
+      }
+    } catch { /* not JSON */ }
+  }
+
+  return [];
+}
+
+// ── Single model agent loop ────────────────────────────────────────────────
+
+async function runAgentLoop(
+  ollamaBase: string,
+  model: string,
+  messages: { role: string; content: string; images?: string[] }[],
+  cwd: string,
+  withTools: boolean,
+  send: (event: string, data: object) => void,
+  maxRounds = 10
+): Promise<string> {
+  let loopMessages = [...messages];
+  let lastText = "";
+
+  for (let round = 0; round < maxRounds; round++) {
+    // Swap to this model (unload others to save RAM on Azure)
+    const loaded = await getLoadedModels(ollamaBase);
+    const others = loaded.filter(m => m !== model);
+    await Promise.all(others.map(m => unloadModel(m, ollamaBase)));
+
+    let res: Response;
+    try {
+      const body = withTools
+        ? { model, messages: loopMessages, tools: TOOLS, stream: false }
+        : { model, messages: loopMessages, stream: false };
+      res = await fetch(`${ollamaBase}/api/chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+    } catch (e) {
+      throw new Error(`Cannot reach Ollama: ${(e as Error).message}`);
+    }
+
+    if (!res.ok) {
+      const errText = await res.text().catch(() => "");
+      const toolsNotSupported = errText.toLowerCase().includes("does not support tools");
+      if (toolsNotSupported && withTools) {
+        // Retry without tools — model will explain what to do in text
+        send("thinking", { text: `${model} doesn't support structured tools — using plain chat mode` });
+        return runAgentLoop(ollamaBase, model, messages, cwd, false, send, maxRounds);
+      }
+      throw new Error(`Ollama error: ${errText || res.statusText}`);
+    }
+
+    const data = await res.json();
+    const message = data.message;
+
+    // Strip <think> blocks
+    let content = message?.content ?? "";
+    const thinkMatch = content.match(/^<think>([\s\S]*?)<\/think>\s*([\s\S]*)$/);
+    if (thinkMatch) {
+      if (thinkMatch[1].trim()) send("thinking", { text: thinkMatch[1].trim() });
+      content = thinkMatch[2].trim();
+    }
+
+    // Extract tool calls (handles both structured and text-embedded formats)
+    const toolCalls = extractToolCalls({ tool_calls: message?.tool_calls, content });
+
+    if (toolCalls.length > 0) {
+      send("thinking", { text: `Running ${toolCalls.length} action(s)…` });
+      loopMessages.push({ role: "assistant", content });
+
+      for (const tc of toolCalls) {
+        const toolName = tc.function?.name;
+        const rawArgs  = tc.function?.arguments ?? {};
+        const args = typeof rawArgs === "string" ? JSON.parse(rawArgs) : rawArgs;
+
+        send("tool_call", { tool: toolName, args });
+        const result = await executeTool(toolName, args, cwd, send);
+        send("tool_result", { tool: toolName, result });
+        loopMessages.push({ role: "tool", content: result });
+      }
+      continue; // loop back for model to process tool results
+    }
+
+    // No tool calls — this is the final text response
+    lastText = content;
+    break;
+  }
+
+  return lastText;
+}
+
 // ── Main route ─────────────────────────────────────────────────────────────
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { messages, model, system_prompt, workspace_path } = body as {
+    const { messages, model, system_prompt, workspace_path, images } = body as {
       messages: { role: string; content: string }[];
       model: string;
       system_prompt?: string;
       workspace_path?: string;
+      images?: string[];  // base64 images from user message
     };
 
     if (!model || !messages?.length) {
       return NextResponse.json({ error: "model and messages required" }, { status: 400 });
     }
 
-    // ── Resolve Ollama host (with Azure fallback) ──────────────────────────
     let ollamaBase: string;
     try {
       ollamaBase = await resolveOllamaHost();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Cannot reach Ollama";
-      // Return a proper SSE error so the UI shows a clear message
       const encoder = new TextEncoder();
       const readable = new ReadableStream({
         start(controller) {
-          controller.enqueue(
-            encoder.encode(
-              `data: ${JSON.stringify({
-                event: "error",
-                message: msg,
-                hint: isCloudConfigured()
-                  ? "Your Azure Ollama instance is unreachable. Check that the container is running."
-                  : "Ollama is not running. Start it with: ollama serve — or set OLLAMA_HOST to point to an Azure instance.",
-              })}\n\n`
-            )
-          );
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ event: "error", message: msg })}\n\n`));
           controller.close();
         },
       });
@@ -457,212 +516,136 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    const allModels  = await getAvailableModels(ollamaBase);
-    const agentModel = pickAgentModel(model, allModels);
+    const allModels = await getAvailableModels(ollamaBase);
+    const effectiveWorkspace = workspace_path || "C:\\Users\\PC";
     const projectInstructions = loadProjectInstructions(workspace_path);
 
-    // Workspace path for tool execution — default to user's home
-    const effectiveWorkspace = workspace_path || "C:\\Users\\PC";
-
-    const agentSystemPrompt =
-      (system_prompt ? system_prompt + "\n\n" : "") +
-      `You are an expert AI coding assistant with direct access to the user's local filesystem and terminal via tools.
-
-RULES:
-- When asked to create, edit, fix, or delete files — USE THE TOOLS. Do not just explain.
-- For editing existing files: use patch_file (search/replace) — more efficient than rewriting the whole file.
-- For new files: use write_file.
-- After file changes, briefly explain what you did and why.
-- If a command fails, read the error, diagnose, and retry with a fix.
-- Use search_in_files to understand the codebase before making changes.
-- Always read a file with read_file before editing it unless you just created it.
-- You can use relative paths — they resolve against the workspace directory.
-- To create a folder use run_command with: New-Item -ItemType Directory -Path "folder_name" -Force
-
-Current workspace directory: ${effectiveWorkspace}
-${projectInstructions}`;
-
-    const ollamaMessages: { role: string; content: string }[] = [
-      { role: "system", content: agentSystemPrompt },
-      ...messages,
-    ];
-
     const encoder = new TextEncoder();
-
     const readable = new ReadableStream({
       async start(controller) {
         function send(event: string, data: object) {
           controller.enqueue(encoder.encode(`data: ${JSON.stringify({ event, ...data })}\n\n`));
         }
 
-        if (agentModel !== model) {
-          send("thinking", { text: `Using ${agentModel} (${model} is too slow for agent mode)` });
-        }
-
         if (isCloudConfigured()) {
-          send("thinking", { text: `Connected to cloud Ollama` });
+          send("thinking", { text: "Connected to Azure Ollama" });
         }
 
-        await unloadOthers(agentModel, ollamaBase);
+        try {
+          const userMessage = messages[messages.length - 1];
+          const hasImages   = images && images.length > 0;
 
-        let loopMessages = [...ollamaMessages];
+          // ── PHASE 1: Vision analysis (if images attached) ──────────────
+          let visionContext = "";
+          if (hasImages) {
+            const visionModel = pickModel("vision", model, allModels);
+            const hasVision   = isVision(visionModel);
 
-        async function callOllama(mdl: string, withTools = true): Promise<Response> {
-          const timeoutMs = mdl.includes("14b") ? 10_000 : 60_000;
-          const ctrl = new AbortController();
-          const timer = setTimeout(() => ctrl.abort(), timeoutMs);
-          try {
-            const body = withTools
-              ? { model: mdl, messages: loopMessages, tools: TOOLS, stream: false }
-              : { model: mdl, messages: loopMessages, stream: false };
-            const r = await fetch(`${ollamaBase}/api/chat`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(body),
-              signal: ctrl.signal,
-            });
-            clearTimeout(timer);
-            return r;
-          } catch (e) {
-            clearTimeout(timer);
-            throw e;
-          }
-        }
-
-        for (let round = 0; round < 10; round++) {
-          let ollamaRes: Response;
-
-          try {
-            ollamaRes = await callOllama(agentModel);
-          } catch (e: unknown) {
-            const isTimeout = (e as Error)?.name === "AbortError";
-            if (isTimeout && agentModel.includes("14b")) {
-              const allMdls = await getAvailableModels(ollamaBase);
-              const fallback =
-                allMdls.find((m) => m.includes("qwen3") && !isVisionOnly(m)) ??
-                allMdls.find((m) => m.toLowerCase().includes("coder") && m.includes("7b") && !isVisionOnly(m));
-              if (fallback) {
-                send("thinking", { text: `14b timed out — switching to ${fallback}` });
-                await unloadModel(agentModel, ollamaBase);
-                try {
-                  ollamaRes = await callOllama(fallback);
-                } catch {
-                  send("error", { message: "Model timed out and fallback also failed" });
-                  break;
-                }
-              } else {
-                send("error", { message: "14b model timed out. No fallback model available." });
-                break;
-              }
+            if (!hasVision) {
+              send("thinking", { text: `⚠️ No vision model available yet (llava is downloading). Proceeding without image analysis.` });
             } else {
-              const errMsg = (e as Error)?.message ?? "Unknown error";
-              send("error", { message: `Cannot reach Ollama: ${errMsg}` });
-              break;
-            }
-          }
+              send("thinking", { text: `👁 Analyzing image with ${visionModel}…` });
+              await swapModel(null, visionModel, ollamaBase);
 
-          if (!ollamaRes!.ok) {
-            const errText = await ollamaRes!.text().catch(() => "");
-            const isToolsUnsupported =
-              errText.toLowerCase().includes("does not support tools") ||
-              (errText.toLowerCase().includes("tool") && errText.toLowerCase().includes("not support"));
-
-            if (isToolsUnsupported) {
-              send("thinking", { text: `${agentModel} doesn't support tools — switching to plain chat mode` });
+              // Call vision model with images
+              let visionRes: Response;
               try {
-                ollamaRes = await callOllama(agentModel, false);
-              } catch {
-                send("error", { message: "Cannot reach Ollama" });
-                break;
-              }
-              if (!ollamaRes.ok) {
-                send("error", { message: `Ollama error: ${await ollamaRes.text().catch(() => ollamaRes!.statusText)}` });
-                break;
-              }
-            } else {
-              send("error", { message: `Ollama error: ${errText || ollamaRes!.statusText}` });
-              break;
-            }
-          }
+                visionRes = await fetch(`${ollamaBase}/api/chat`, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    model: visionModel,
+                    messages: [
+                      {
+                        role: "user",
+                        content: `You are a visual analysis assistant. Analyze this image in detail. Describe:
+1. What UI/design elements are present (components, layout, colors, typography)
+2. Where exactly elements are positioned
+3. Any text content visible
+4. The overall purpose/context of what is shown
+5. Specific details a developer would need to replicate or modify this UI
 
-          const data = await ollamaRes!.json();
-          const message = data.message;
-
-          let messageContent = message?.content ?? "";
-          const thinkMatch = messageContent.match(/^<think>([\s\S]*?)<\/think>\s*([\s\S]*)$/);
-          if (thinkMatch) {
-            const thinkText = thinkMatch[1].trim();
-            messageContent = thinkMatch[2].trim();
-            if (thinkText) send("thinking", { text: thinkText });
-          }
-
-          // Some models (e.g. qwen2.5-coder) return tool calls as JSON text in
-          // content instead of the structured tool_calls array. Parse it here.
-          let effectiveToolCalls = message?.tool_calls;
-          if ((!effectiveToolCalls || effectiveToolCalls.length === 0) && messageContent) {
-            // Try single JSON object: {"name":"tool","arguments":{...}}
-            const singleMatch = messageContent.match(/\{[\s\S]*"name"\s*:\s*"(\w+)"[\s\S]*\}/);
-            if (singleMatch) {
-              try {
-                const parsed = JSON.parse(singleMatch[0]);
-                if (parsed.name) {
-                  effectiveToolCalls = [{
-                    function: { name: parsed.name, arguments: parsed.arguments ?? parsed.parameters ?? {} }
-                  }];
-                  messageContent = ""; // consumed as tool call
-                }
-              } catch { /* not valid JSON */ }
-            }
-            // Try array: [{"name":"tool","arguments":{...}}]
-            if (!effectiveToolCalls || effectiveToolCalls.length === 0) {
-              const arrayMatch = messageContent.match(/\[[\s\S]*\]/);
-              if (arrayMatch) {
-                try {
-                  const parsed = JSON.parse(arrayMatch[0]);
-                  if (Array.isArray(parsed) && parsed[0]?.name) {
-                    effectiveToolCalls = parsed.map((t: { name: string; arguments?: object; parameters?: object }) => ({
-                      function: { name: t.name, arguments: t.arguments ?? t.parameters ?? {} }
-                    }));
-                    messageContent = "";
-                  }
-                } catch { /* not valid JSON */ }
+User's request: ${userMessage.content}`,
+                        images,
+                      }
+                    ],
+                    stream: false,
+                  }),
+                });
+                const visionData = await visionRes.json();
+                visionContext = visionData.message?.content ?? "";
+                send("thinking", { text: `👁 Vision analysis complete:\n${visionContext.slice(0, 300)}…` });
+              } catch (e) {
+                send("thinking", { text: `Vision analysis failed: ${(e as Error).message}` });
               }
             }
           }
 
-          if (effectiveToolCalls && effectiveToolCalls.length > 0) {
-            send("thinking", { text: `Running ${effectiveToolCalls.length} action(s)…` });
-            loopMessages.push({ role: "assistant", content: messageContent });
-
-            for (const tc of effectiveToolCalls) {
-              const toolName = tc.function?.name ?? tc.name;
-              const toolArgs = tc.function?.arguments ?? tc.arguments ?? {};
-              const parsedArgs = typeof toolArgs === "string" ? JSON.parse(toolArgs) : toolArgs;
-
-              send("tool_call", { tool: toolName, args: parsedArgs });
-              const result = await executeTool(toolName, parsedArgs, effectiveWorkspace, send);
-              send("tool_result", { tool: toolName, result });
-
-              loopMessages.push({ role: "tool", content: result });
-            }
-            continue;
+          // ── PHASE 2: Coder/agent loop ──────────────────────────────────
+          // Pick a non-vision model for code editing
+          const coderModel = pickModel("coder", model, allModels);
+          if (coderModel !== model) {
+            send("thinking", { text: `Using ${coderModel} for code editing` });
           }
 
-          // Final text response — stream word by word
-          const finalText = messageContent;
+          const systemPrompt =
+            (system_prompt ? system_prompt + "\n\n" : "") +
+            `You are an expert AI coding assistant with direct access to the user's filesystem and terminal.
+
+RULES:
+- When asked to create, edit, fix, or delete files — USE THE TOOLS. Do not just explain.
+- For editing existing files: use patch_file (search/replace) — more precise than write_file.
+- For new files: use write_file.
+- Always read a file with read_file before editing it.
+- After file changes, briefly explain what you did and why.
+- If a command fails, read the error and retry with a fix.
+- Use search_in_files to understand the codebase before making changes.
+- Relative paths resolve against the workspace directory.
+- To create a folder: run_command with New-Item -ItemType Directory -Path "folder" -Force
+
+Current workspace: ${effectiveWorkspace}
+${projectInstructions}` +
+            (visionContext ? `\n\n# Image Analysis Results\nThe user attached an image. Here is the visual analysis:\n\n${visionContext}\n\nUse this analysis to inform your code changes.` : "");
+
+          await swapModel(null, coderModel, ollamaBase);
+
+          const agentMessages: { role: string; content: string; images?: string[] }[] = [
+            { role: "system", content: systemPrompt },
+            ...messages.slice(0, -1),
+            // Last user message — include images only if no vision model handled them
+            // (if vision model already analyzed, pass the text + analysis context instead)
+            hasImages && !visionContext
+              ? { role: "user", content: userMessage.content, images }
+              : { role: "user", content: userMessage.content },
+          ];
+
+          const finalText = await runAgentLoop(
+            ollamaBase,
+            coderModel,
+            agentMessages,
+            effectiveWorkspace,
+            !isVision(coderModel), // don't send tools to vision-only models
+            send
+          );
+
+          // Stream final response word by word
           if (finalText) {
             const words = finalText.split(" ");
             let accumulated = "";
             for (const word of words) {
               accumulated += (accumulated ? " " : "") + word;
               send("delta", { text: word + " " });
-              await new Promise((r) => setTimeout(r, 8));
+              await new Promise(r => setTimeout(r, 8));
             }
             send("done", { fullText: accumulated });
           } else {
             send("done", { fullText: "" });
           }
-          break;
+
+        } catch (err: unknown) {
+          const msg = err instanceof Error ? err.message : String(err);
+          console.error("[agent]", msg);
+          send("error", { message: msg });
         }
 
         controller.close();
@@ -672,6 +655,7 @@ ${projectInstructions}`;
     return new Response(readable, {
       headers: { "Content-Type": "text/event-stream", "Cache-Control": "no-cache", Connection: "keep-alive" },
     });
+
   } catch (err) {
     console.error("[agent]", err);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
