@@ -9,8 +9,5 @@
     "app/api/chat/route.ts": {
       "maxDuration": 60
     }
-  },
-  "env": {
-    "OLLAMA_HOST": "@ollama_host"
   }
 }
