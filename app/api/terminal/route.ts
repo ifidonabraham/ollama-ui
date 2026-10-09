@@ -1,8 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { exec } from "child_process";
-import { promisify } from "util";
-
-const execAsync = promisify(exec);
+import { runCommandBounded } from "@/lib/commandRun";
 
 // Commands that are too dangerous to allow
 const BLOCKED_PATTERNS = [
@@ -34,29 +31,19 @@ export async function POST(req: NextRequest) {
     }
 
     const workingDir = cwd && cwd.trim() ? cwd.trim() : process.env.HOME ?? "C:\\Users\\PC";
+    const run = await runCommandBounded(command, {
+      cwd: workingDir,
+      idleMs: 15_000,
+      totalMs: 15_000,
+      maxBytes: 512 * 1024,
+    });
 
-    try {
-      const { stdout, stderr } = await execAsync(command, {
-        cwd: workingDir,
-        timeout: 15000, // 15s timeout
-        maxBuffer: 1024 * 512, // 512 KB output limit
-        shell: "powershell.exe",
-      });
-
-      return NextResponse.json({
-        stdout: stdout ?? "",
-        stderr: stderr ?? "",
-        cwd: workingDir,
-      });
-    } catch (execErr: unknown) {
-      const e = execErr as { stdout?: string; stderr?: string; message?: string };
-      return NextResponse.json({
-        stdout: e.stdout ?? "",
-        stderr: e.stderr ?? e.message ?? "Command failed",
-        cwd: workingDir,
-        error: true,
-      });
-    }
+    return NextResponse.json({
+      stdout: run.output,
+      stderr: "",
+      cwd: workingDir,
+      error: run.stopped !== "" || (run.code !== null && run.code !== 0),
+    });
   } catch (err) {
     console.error("[terminal]", err);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });

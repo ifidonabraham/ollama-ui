@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Ollama UI",
-  description: "Local AI chat interface for Ollama models",
+  title: "Fonia",
+  description: "Local assistant for this computer",
 };
 
 export default function RootLayout({

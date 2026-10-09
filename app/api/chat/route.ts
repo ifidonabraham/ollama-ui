@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { addMessage, getMessages, getSession } from "@/lib/db";
-import { ollamaFetch } from "@/lib/ollama";
+import type { AnswerModel } from "@/lib/answerModels";
+import { acquireOllamaModel, resolveOllamaHost } from "@/lib/ollama";
 import { randomUUID } from "crypto";
 
 // Models known to support vision — checked by name prefix
@@ -49,7 +50,7 @@ export async function POST(req: NextRequest) {
     addMessage(userMsgId, session_id, "user", userContent);
 
     // Build Ollama message history
-    const history = getMessages(session_id);
+    const history = getMessages(session_id, "chat");
     const ollamaMessages: { role: string; content: string; images?: string[] }[] = [];
 
     if (session.system_prompt) {
@@ -69,18 +70,23 @@ export async function POST(req: NextRequest) {
     }
 
     let ollamaRes: Response;
+    let releaseModel: (() => void) | null = null;
     try {
-      ollamaRes = await ollamaFetch("/api/chat", {
+      const ollamaHost = await resolveOllamaHost();
+      releaseModel = await acquireOllamaModel(ollamaHost, model);
+      ollamaRes = await fetch(`${ollamaHost}/api/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ model, messages: ollamaMessages, stream: true }),
+        body: JSON.stringify({ model, messages: ollamaMessages, stream: true, keep_alive: "30s" }),
       });
     } catch (err: unknown) {
+      releaseModel?.();
       const msg = err instanceof Error ? err.message : "Cannot reach Ollama";
       return NextResponse.json({ error: msg }, { status: 503 });
     }
 
     if (!ollamaRes.ok || !ollamaRes.body) {
+      releaseModel?.();
       const errText = await ollamaRes.text().catch(() => ollamaRes.statusText);
       return NextResponse.json(
         { error: `Ollama error: ${errText}` },
@@ -117,10 +123,11 @@ export async function POST(req: NextRequest) {
                   );
                 }
                 if (data.done) {
-                  addMessage(assistantMsgId, session_id, "assistant", fullContent);
+                  const models: AnswerModel[] = [{ name: model, role: "chat" }];
+                  addMessage(assistantMsgId, session_id, "assistant", fullContent, "chat", models);
                   controller.enqueue(
                     encoder.encode(
-                      `data: ${JSON.stringify({ done: true, id: assistantMsgId })}\n\n`
+                      `data: ${JSON.stringify({ done: true, id: assistantMsgId, models })}\n\n`
                     )
                   );
                 }
@@ -130,6 +137,7 @@ export async function POST(req: NextRequest) {
             }
           }
         } finally {
+          releaseModel?.();
           controller.close();
         }
       },

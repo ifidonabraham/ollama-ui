@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { ollamaFetch, getPrimaryHost, isCloudConfigured } from "@/lib/ollama";
+import os from "os";
+import { getOllamaSchedulerStatus, ollamaFetch, getPrimaryHost, isCloudConfigured } from "@/lib/ollama";
 
 export async function GET() {
   try {
@@ -23,7 +24,13 @@ export async function GET() {
     );
 
     return NextResponse.json({
-      models,
+      models: models.map((model: { name: string; size: number; modified_at: string }) => ({
+        ...model,
+        estimated_load_mb: Math.round(model.size / 1024 / 1024),
+      })),
+      free_memory_mb: Math.round(os.freemem() / 1024 / 1024),
+      total_memory_mb: Math.round(os.totalmem() / 1024 / 1024),
+      scheduler: await getOllamaSchedulerStatus(getPrimaryHost()),
       source: isCloudConfigured() ? "cloud" : "local",
       host: getPrimaryHost(),
     });
@@ -34,6 +41,9 @@ export async function GET() {
       {
         error: msg,
         models: [],
+        free_memory_mb: Math.round(os.freemem() / 1024 / 1024),
+        total_memory_mb: Math.round(os.totalmem() / 1024 / 1024),
+        scheduler: { queued_operations: 0, active_model: null, loaded_models: [] },
         source: "offline",
         hint: isCloudConfigured()
           ? "Your Azure Ollama instance is unreachable. Check if the container is running."

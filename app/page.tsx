@@ -5,9 +5,16 @@ import Sidebar, { SessionMeta, WorkspaceContext } from "@/components/Sidebar";
 import ChatWindow, { ChatMessage } from "@/components/ChatWindow";
 import FileBrowser from "@/components/FileBrowser";
 import TerminalPanel from "@/components/TerminalPanel";
+import CommandPalette from "@/components/CommandPalette";
+import { OCore } from "@/components/OCore";
 import { FileNode } from "@/components/FolderTree";
+import { classifyIntent, isLocalComputerTask, isSimpleAction, refersToPriorAction } from "@/lib/intent";
+import { personIsSteppingAway } from "@/lib/awayIntent";
+import { estimateModelMb } from "@/lib/inferenceBudget";
+import { directUserAction } from "@/lib/directAction";
+import type { AnswerModel } from "@/lib/answerModels";
 
-type Panel = "chat" | "files" | "terminal";
+type Panel = "chat" | "split" | "terminal";
 
 interface ContextFile {
   path: string;
@@ -20,10 +27,13 @@ export default function Home() {
   const [sessions, setSessions] = useState<SessionMeta[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [agentHistory, setAgentHistory] = useState<{ role: "user" | "assistant"; content: string; models?: AnswerModel[] }[]>([]);
   const [systemPrompt, setSystemPromptState] = useState("");
 
   // ── Model state ───────────────────────────────────────────────────────────
   const [models, setModels] = useState<string[]>([]);
+  const [freeMemoryMb, setFreeMemoryMb] = useState<number | null>(null);
+  const [scheduler, setScheduler] = useState<{ queued_operations: number; active_model: string | null; loaded_models: string[] }>({ queued_operations: 0, active_model: null, loaded_models: [] });
   const [activeModel, setActiveModel] = useState<string>("");
 
   // ── Streaming ─────────────────────────────────────────────────────────────
@@ -38,6 +48,9 @@ export default function Home() {
 
   // ── Panel ─────────────────────────────────────────────────────────────────
   const [activePanel, setActivePanel] = useState<Panel>("chat");
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [terminalDock, setTerminalDock] = useState(false);
+  const [paletteOpen, setPaletteOpen] = useState(false);
 
   // ── Ollama source tracking ────────────────────────────────────────────────
   const [ollamaSource, setOllamaSource] = useState<"local" | "cloud" | "offline">("offline");
@@ -49,6 +62,8 @@ export default function Home() {
       const d = await r.json();
       const names: string[] = (d.models ?? []).map((m: { name: string }) => m.name);
       setModels(names);
+      setFreeMemoryMb(typeof d.free_memory_mb === "number" ? d.free_memory_mb : null);
+      setScheduler(d.scheduler ?? { queued_operations: 0, active_model: null, loaded_models: [] });
       setOllamaSource(names.length > 0 ? (d.source ?? "local") : "offline");
       if (!keepCurrent || !activeModel) {
         if (names.length > 0) setActiveModel(names[0]);
@@ -66,6 +81,22 @@ export default function Home() {
   // ── Load sessions ─────────────────────────────────────────────────────────
   useEffect(() => { loadSessions(); }, []);
 
+  useEffect(() => {
+    function onKey(event: KeyboardEvent) {
+      const key = event.key.toLowerCase();
+      if ((event.ctrlKey || event.metaKey) && key === "k") {
+        event.preventDefault();
+        setPaletteOpen((open) => !open);
+      }
+      if ((event.ctrlKey || event.metaKey) && key === "n" && !event.shiftKey) {
+        event.preventDefault();
+        void createNewSession();
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  });
+
   async function loadSessions() {
     const res = await fetch("/api/sessions");
     const data = await res.json();
@@ -78,6 +109,7 @@ export default function Home() {
     if (!data.session) return;
     setActiveSessionId(id);
     setMessages(data.messages ?? []);
+    setAgentHistory(data.agent_messages ?? []);
     setActiveModel(data.session.model);
     setSystemPromptState(data.session.system_prompt ?? "");
   }
@@ -100,7 +132,7 @@ export default function Home() {
 
   async function deleteSession(id: string) {
     await fetch(`/api/sessions/${id}`, { method: "DELETE" });
-    if (activeSessionId === id) { setActiveSessionId(null); setMessages([]); }
+    if (activeSessionId === id) { setActiveSessionId(null); setMessages([]); setAgentHistory([]); }
     await loadSessions();
   }
 
@@ -235,7 +267,7 @@ export default function Home() {
             const data = JSON.parse(line.slice(6));
             if (data.delta) { accumulated += data.delta; setStreamingContent(accumulated); }
             if (data.done) {
-              const assistantMsg: ChatMessage = { id: data.id, role: "assistant", content: accumulated };
+              const assistantMsg: ChatMessage = { id: data.id, role: "assistant", content: accumulated, models: data.models };
               setMessages((prev) => [...prev.filter((m) => !m.id.startsWith("temp-")), assistantMsg]);
               loadSession(sessionId);
             }
@@ -260,65 +292,87 @@ export default function Home() {
   function pickBestModel(content: string, images?: string[], forAgent = false): string | null {
     const lower = content.toLowerCase();
     const wordCount = lower.trim().split(/\s+/).length;
+    const intent = classifyIntent(content, Boolean(images?.length));
 
     const isVision  = (m: string) => ["llava", "moondream", "minicpm-v", "bakllava"].some((p) => m.toLowerCase().startsWith(p));
     const isCoder   = (m: string) => m.toLowerCase().includes("coder");
     const isGeneral = (m: string) => !isCoder(m) && !isVision(m);
 
     const tiny    = models.find((m) => isCoder(m) && m.includes("1.5b"));
+    const mid     = models.find((m) => isCoder(m) && /:3b\b/i.test(m));
     const small   = models.find((m) => isCoder(m) && m.includes("7b"));
-    const large   = models.find((m) => isCoder(m) && (m.includes("14b") || m.includes("13b")));
     const general = models.find((m) => isGeneral(m)); // qwen3:8b
-    const vision  = models.find((m) => isVision(m));  // llava:7b
+    const llava   = models.find((m) => m.toLowerCase().startsWith("llava"));
+    const dream   = models.find((m) => m.toLowerCase().startsWith("moondream"));
+    const otherVision = models.filter((m) => isVision(m) && m !== llava && m !== dream);
 
-    // Agent mode with images → use vision model (it will still try tools; agent route handles fallback if it fails)
-    if (forAgent && images && images.length > 0 && vision) {
-      return vision !== activeModel ? vision : null;
+    // The same fit lines the server uses: 3B near 3800 MB, moondream near 2800 MB, 7B near 6200 MB.
+    const canFit = (candidate: string | undefined) => {
+      if (!candidate) return false;
+      if (freeMemoryMb === null) return /1\.5b/i.test(candidate);
+      return freeMemoryMb >= estimateModelMb(candidate);
+    };
+    const firstFitting = (...candidates: (string | undefined)[]): string | null => candidates.find(canFit) ?? null;
+
+    // Follow-ups such as "did you create it" are answered from the session log. Do not load a model for them.
+    if (forAgent && refersToPriorAction(content)) return null;
+    // "run dir" and "read package.json" are executed by the server.
+    if (forAgent && directUserAction(content)) return null;
+
+    // Documents, videos, and opening an installed app need a tool-capable coder. LLaVA is loaded only for the frames.
+    if (forAgent && isLocalComputerTask(content)) {
+      const computerModel = firstFitting(small, mid, general, tiny);
+      return computerModel && computerModel !== activeModel ? computerModel : null;
     }
 
-    // Agent mode without images → prefer fast text models, avoid slow 14b by default
-    // NOTE: 1.5b IS allowed — agent route will fall back gracefully if tools not supported
-    if (forAgent) {
-      // If currently on 14b or a vision model, switch to something faster
-      if (activeModel.includes("14b") || isVision(activeModel)) {
-        const best = general ?? small ?? tiny ?? null;
-        return best && best !== activeModel ? best : null;
-      }
-      // Otherwise keep current model — don't force-switch away from 1.5b
-      return null;
-    }
-
-    // Image attached → vision model
+    // Images get a vision pass first. The agent route then hands the result to a coder.
     if (images && images.length > 0) {
-      return vision && vision !== activeModel ? vision : null;
+      const fittingVision = firstFitting(llava, dream, ...otherVision);
+      return fittingVision && fittingVision !== activeModel ? fittingVision : null;
     }
 
-    // ── Minor / tiny code edits → 1.5b (fast) ──────────────────────────────
-    const minorEdit = /\b(rename|change the|replace|swap|update the|fix the|add a|remove the|delete the|move the|make it|set the|convert|just|only)\b/;
-    if (tiny && wordCount <= 20 && minorEdit.test(lower) && /\b(color|variable|name|class|import|line|typo|spacing|margin|padding|font|size|text|value|string|number|comment|console\.log)\b/.test(lower)) {
-      return tiny !== activeModel ? tiny : null;
+    // Very short conversational messages should never wake a multi-gigabyte model.
+    const casualTask = wordCount <= 6 && !/\b(code|file|folder|project|bug|error|help|explain|why|how|create|edit|run)\b/.test(lower) && !personIsSteppingAway(content);
+    if (forAgent && casualTask) {
+      const casualModel = firstFitting(general, tiny, small);
+      return casualModel && casualModel !== activeModel ? casualModel : null;
     }
 
-    // ── qwen3:8b — reasoning, explanations, non-code questions ─────────────
-    // Use it when the message is clearly NOT a coding task
-    const generalIntent = /\b(explain|what is|what are|why does|why is|how does|how do|tell me|describe|summarize|compare|difference between|pros and cons|should i use|which is better|what do you think|overview|understand|learn|concept|theory|idea|opinion|recommend|suggest)\b/;
+    if (forAgent && (isSimpleAction(content, Boolean(images?.length)) || intent.needsWriteAccess)) {
+      const simpleModel = firstFitting(small, mid, tiny);
+      return simpleModel && simpleModel !== activeModel ? simpleModel : null;
+    }
+
     const hasCodeKeyword = /\b(function|class|component|hook|route|api|sql|bug|error|fix|refactor|implement|build|create a file|script|compile|deploy|import|export|interface|type |enum|async|await|fetch|database|query|css|html|jsx|tsx|python|javascript|typescript|react|next\.?js|node)\b/;
-    if (generalIntent.test(lower) && !hasCodeKeyword.test(lower) && general) {
-      return general !== activeModel ? general : null;
+    const codeTask = hasCodeKeyword.test(lower) || /\b(create|edit|update|change|delete|remove|add|write|implement|run|test|debug)\b/.test(lower);
+    const deepTask = intent.intent === "deep";
+
+    // Deep tasks use a sequential planner and executor rather than loading 14B by default.
+    if (deepTask) {
+      // Deep work is planned by Qwen3 8B server-side, then executed by the 7B coder.
+      // Keep 14B out of the default path because its load cost is disproportionate.
+      const complexModel = firstFitting(small, mid, tiny);
+      return complexModel && complexModel !== activeModel ? complexModel : null;
     }
 
-    // ── Large coding task → 14b ─────────────────────────────────────────────
-    const bigTask = /\b(architecture|full (page|app|website|system|backend|frontend|api)|scaffold|entire|whole project|from scratch|multi.?file|design system|database schema)\b/;
-    if (bigTask.test(lower) && large) {
-      return large !== activeModel ? large : null;
+    // Small edits can be handled quickly; normal coding uses the 7B coder.
+    const minorEdit = /\b(rename|change the|replace|swap|update the|fix the|add a|remove the|delete the|move the|make it|set the|convert|just|only)\b/;
+    if (codeTask && wordCount <= 20 && minorEdit.test(lower)) {
+      const quickCodeModel = firstFitting(small, mid, tiny);
+      return quickCodeModel && quickCodeModel !== activeModel ? quickCodeModel : null;
+    }
+    if (codeTask) {
+      const codeModel = firstFitting(small, mid, tiny);
+      return codeModel && codeModel !== activeModel ? codeModel : null;
     }
 
-    // ── Standard coding → 7b ───────────────────────────────────────────────
-    if (hasCodeKeyword.test(lower) && small) {
-      return small !== activeModel ? small : null;
+    // Short explanations and quick questions favor the general model.
+    if (forAgent && (wordCount <= 16 || /\b(explain|what is|why|how does|summarize|compare|recommend|suggest)\b/.test(lower))) {
+      const explanationModel = firstFitting(general, tiny, small);
+      return explanationModel && explanationModel !== activeModel ? explanationModel : null;
     }
 
-    return null; // keep current model
+    return forAgent ? (firstFitting(general, mid, small, tiny) ?? null) : null;
   }
 
   // ── Send new message ──────────────────────────────────────────────────────
@@ -412,19 +466,31 @@ export default function Home() {
     window.dispatchEvent(new CustomEvent("ollama-insert-text", { detail: text }));
   }
 
-  const panelButtons: { id: Panel; label: string; icon: string }[] = [
-    { id: "chat", label: "Chat", icon: "◉" },
-    { id: "files", label: "Files", icon: "📁" },
-    { id: "terminal", label: "Terminal", icon: "⚡" },
+  const panelButtons: { id: Panel; label: string }[] = [
+    { id: "chat", label: "Chat" },
+    { id: "split", label: "Split" },
+    { id: "terminal", label: "Terminal" },
   ];
+  const showChat = activePanel === "chat" || activePanel === "split";
+  const showTerminal = activePanel === "terminal" || (terminalDock && activePanel !== "terminal");
+
+  function freeRam() {
+    void fetch("/api/unload", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({}) }).then(() => fetchModels(true));
+  }
 
   return (
-    <div style={{ display: "flex", height: "100vh", overflow: "hidden" }}>
+    <div className="fonia-shell">
+      <div className="fonia-bg" aria-hidden="true">
+        <OCore size={420} animation="full" uid="bg" />
+      </div>
       <Sidebar
         sessions={sessions}
         activeId={activeSessionId}
         workspace={workspace}
         selectedFiles={selectedFilePaths}
+        collapsed={sidebarCollapsed}
+        freeMemoryMb={freeMemoryMb}
+        onToggleCollapse={() => setSidebarCollapsed((value) => !value)}
         onSelect={(id) => { loadSession(id); setActivePanel("chat"); }}
         onNew={createNewSession}
         onDelete={deleteSession}
@@ -434,69 +500,92 @@ export default function Home() {
         onToggleFile={toggleFile}
       />
 
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", background: "var(--bg-base)" }}>
-        {/* Panel tabs */}
-        <div style={{ display: "flex", borderBottom: "1px solid var(--border)", background: "var(--bg-panel)", flexShrink: 0 }}>
-          {panelButtons.map((btn) => (
-            <button
-              key={btn.id}
-              onClick={() => setActivePanel(btn.id)}
-              style={{
-                padding: "9px 18px", background: "none", border: "none",
-                borderBottom: activePanel === btn.id ? "2px solid var(--accent)" : "2px solid transparent",
-                color: activePanel === btn.id ? "var(--accent)" : "var(--text-muted)",
-                cursor: "pointer", fontSize: 12,
-                fontWeight: activePanel === btn.id ? 600 : 400,
-                display: "flex", alignItems: "center", gap: 5, transition: "color 0.15s",
-              }}
-            >
-              {btn.icon} {btn.label}
+      <div className="fonia-stage">
+        <div className="fonia-top">
+          <button type="button" className="fonia-btn" onClick={() => setSidebarCollapsed((value) => !value)} title="Collapse sidebar">
+            {sidebarCollapsed ? "Show" : "Hide"}
+          </button>
+          <div className="fonia-seg" role="tablist" aria-label="Workspace">
+            {panelButtons.map((btn) => (
+              <button
+                key={btn.id}
+                type="button"
+                role="tab"
+                aria-selected={activePanel === btn.id}
+                className={activePanel === btn.id ? "is-active" : ""}
+                onClick={() => setActivePanel(btn.id)}
+              >
+                {btn.label}
+              </button>
+            ))}
+          </div>
+          <div className="fonia-pills">
+            {activeModel && <span className="fonia-pill">{activeModel}</span>}
+            <span className="fonia-pill">{freeMemoryMb == null ? "RAM —" : `RAM ${freeMemoryMb} MB`}</span>
+            <span className="fonia-pill">{models.length} models</span>
+            {scheduler.queued_operations > 0 && <span className="fonia-pill">{scheduler.queued_operations} running</span>}
+            <button type="button" className="fonia-btn" onClick={() => setTerminalDock((value) => !value)}>
+              {terminalDock ? "Hide TTY" : "TTY"}
             </button>
-          ))}
-          <div style={{ flex: 1 }} />
-          <div style={{ padding: "9px 14px", display: "flex", alignItems: "center", gap: 5, fontSize: 11, color: "var(--text-muted)" }}>
-            <span style={{ width: 6, height: 6, borderRadius: "50%", background: models.length > 0 ? "var(--success)" : "var(--danger)", display: "inline-block" }} />
-            {models.length > 0 ? `Ollama · ${models.length} models` : "Ollama offline"}
-            <button
-              onClick={() => fetchModels(true)}
-              title="Refresh model list"
-              style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", fontSize: 12, padding: "0 2px", lineHeight: 1 }}
-            >↻</button>
-            <button
-              onClick={() => fetch("/api/unload", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({}) }).then(() => fetchModels(true))}
-              title="Unload all models from RAM"
-              style={{ background: "none", border: "1px solid var(--border)", color: "var(--text-muted)", cursor: "pointer", fontSize: 10, padding: "1px 6px", borderRadius: 4, lineHeight: 1.4 }}
-            >⏏ Free RAM</button>
+            <button type="button" className="fonia-btn" onClick={() => fetchModels(true)} title="Refresh model list">Refresh</button>
+            <button type="button" className="fonia-btn" onClick={freeRam} title="Unload models from RAM">Free RAM</button>
           </div>
         </div>
 
-        <div style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>
-          {activePanel === "chat" && (
-            <ChatWindow
-              sessionId={activeSessionId}
-              messages={messages}
-              model={activeModel}
-              models={models}
-              streaming={streaming}
-              streamingContent={streamingContent}
-              contextFiles={contextFiles}
-              onSend={sendMessage}
-              onResend={resendMessage}
-              onRegenerate={regenerate}
-              onModelChange={changeModel}
-              onClearHistory={clearHistory}
-              onSystemPromptChange={updateSystemPrompt}
-              systemPrompt={systemPrompt}
-              onRemoveContextFile={removeContextFile}
-              onStopGeneration={stopGeneration}
-              workspacePath={workspace?.path}
-              ollamaSource={ollamaSource}
-            />
+        <div style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column", minHeight: 0 }}>
+          <div style={{ display: showChat ? "flex" : "none", flex: 1, minHeight: 0 }}>
+            <div style={{ display: "flex", flex: 1, minWidth: 0, minHeight: 0, flexDirection: "column" }}>
+              <ChatWindow
+                sessionId={activeSessionId}
+                messages={messages}
+                model={activeModel}
+                models={models}
+                streaming={streaming}
+                streamingContent={streamingContent}
+                initialAgentMessages={agentHistory}
+                contextFiles={contextFiles}
+                onSend={sendMessage}
+                onResend={resendMessage}
+                onRegenerate={regenerate}
+                onModelChange={changeModel}
+                pickModelForTask={(content, images) => pickBestModel(content, images, true)}
+                onClearHistory={clearHistory}
+                onSystemPromptChange={updateSystemPrompt}
+                systemPrompt={systemPrompt}
+                onRemoveContextFile={removeContextFile}
+                onStopGeneration={stopGeneration}
+                workspacePath={workspace?.path}
+                ollamaSource={ollamaSource}
+              />
+            </div>
+            {activePanel === "split" && (
+              <div style={{ width: "42%", minWidth: 280, borderLeft: "1px solid rgba(63, 63, 70, 0.6)", display: "flex", minHeight: 0 }}>
+                <FileBrowser onInsertToChat={handleInsertToChat} />
+              </div>
+            )}
+          </div>
+          {showTerminal && (
+            <div style={{ display: "flex", flex: activePanel === "terminal" ? 1 : "0 0 200px", minHeight: 0, borderTop: "1px solid rgba(63, 63, 70, 0.6)" }}>
+              <TerminalPanel onInsertToChat={handleInsertToChat} />
+            </div>
           )}
-          {activePanel === "files" && <FileBrowser onInsertToChat={handleInsertToChat} />}
-          {activePanel === "terminal" && <TerminalPanel onInsertToChat={handleInsertToChat} />}
         </div>
       </div>
+      <CommandPalette
+        open={paletteOpen}
+        onClose={() => setPaletteOpen(false)}
+        actions={[
+          { id: "new", label: "New session", hint: "Ctrl+N", run: () => void createNewSession() },
+          { id: "chat", label: "Chat", run: () => setActivePanel("chat") },
+          { id: "split", label: "Split code view", run: () => setActivePanel("split") },
+          { id: "terminal", label: "Terminal", run: () => setActivePanel("terminal") },
+          { id: "tty", label: terminalDock ? "Hide live terminal" : "Show live terminal", run: () => setTerminalDock((value) => !value) },
+          { id: "settings", label: "Settings", run: () => window.dispatchEvent(new Event("fonia-open-settings")) },
+          { id: "ram", label: "Purge VRAM", hint: "Unload models", run: freeRam },
+          ...models.map((name) => ({ id: `model:${name}`, label: `Switch model ${name}`, hint: name, run: () => void changeModel(name) })),
+          ...sessions.slice(0, 12).map((session) => ({ id: `chat:${session.id}`, label: session.title || "Untitled chat", hint: session.model, run: () => { void loadSession(session.id); setActivePanel("chat"); } })),
+        ]}
+      />
     </div>
   );
 }

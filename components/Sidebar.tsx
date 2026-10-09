@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import FolderTree, { FileNode } from "./FolderTree";
+import FoniaSettings from "./FoniaSettings";
+import { OCore } from "./OCore";
 
 export interface SessionMeta {
   id: string;
@@ -28,6 +30,9 @@ interface Props {
   onOpenFolder: (path: string) => void;
   onCloseFolder: () => void;
   onToggleFile: (path: string, type: "file" | "dir", node: FileNode) => void;
+  collapsed?: boolean;
+  freeMemoryMb?: number | null;
+  onToggleCollapse?: () => void;
 }
 
 const SECTION_HEADER_STYLE: React.CSSProperties = {
@@ -54,6 +59,9 @@ export default function Sidebar({
   onOpenFolder,
   onCloseFolder,
   onToggleFile,
+  collapsed = false,
+  freeMemoryMb = null,
+  onToggleCollapse,
 }: Props) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
@@ -80,17 +88,29 @@ export default function Sidebar({
     }
   }
 
+  if (collapsed) {
+    return (
+      <aside style={{ width: 44, minWidth: 44, display: "flex", flexDirection: "column", alignItems: "center", gap: 8, padding: "8px 0", background: "rgba(24,24,27,0.8)", borderRight: "1px solid rgba(63,63,70,0.6)", height: "100%" }}>
+        <OCore size={28} animation="subtle" uid="rail" />
+        <button type="button" className="fonia-btn" onClick={onToggleCollapse} title="Show sidebar">›</button>
+      </aside>
+    );
+  }
+
   return (
     <aside
       style={{
-        width: 248,
-        minWidth: 248,
+        width: 240,
+        minWidth: 240,
         display: "flex",
         flexDirection: "column",
-        background: "var(--bg-panel)",
-        borderRight: "1px solid var(--border)",
+        background: "rgba(24, 24, 27, 0.8)",
+        backdropFilter: "blur(12px)",
+        borderRight: "1px solid rgba(63, 63, 70, 0.6)",
         height: "100%",
         overflow: "hidden",
+        position: "relative",
+        zIndex: 1,
       }}
     >
       {/* App header */}
@@ -105,21 +125,19 @@ export default function Sidebar({
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <span style={{ fontSize: 17 }}>🦙</span>
-          <span style={{ fontWeight: 700, fontSize: 14, color: "var(--text-primary)", letterSpacing: "-0.01em" }}>
-            Ollama UI
+          <OCore size={28} animation="subtle" uid="brand" />
+          <span className="fonia-wordmark" style={{ fontWeight: 700, fontSize: 15, letterSpacing: "-0.03em" }}>
+            Fonia
           </span>
         </div>
         <button
           onClick={onNew}
-          title="New chat"
+          title="New session (Ctrl+N)"
+          className="fonia-btn-primary"
           style={{
-            background: "var(--accent)",
-            border: "none",
-            color: "#fff",
-            borderRadius: 6,
             width: 26,
             height: 26,
+            padding: 0,
             cursor: "pointer",
             fontSize: 16,
             display: "flex",
@@ -132,6 +150,7 @@ export default function Sidebar({
           +
         </button>
       </div>
+      <FoniaSettings />
 
       {/* ── PROJECT SECTION ────────────────────────────────── */}
       <div style={{ flexShrink: 0 }}>
@@ -222,7 +241,6 @@ export default function Sidebar({
                   flexShrink: 0,
                 }}
               >
-                <span style={{ fontSize: 12 }}>📁</span>
                 <span style={{ flex: 1, fontSize: 12, fontWeight: 600, color: "var(--text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                   {workspace.name}
                 </span>
@@ -346,9 +364,9 @@ export default function Sidebar({
                     >
                       {s.title}
                     </div>
-                    <div style={{ fontSize: 10, color: "var(--text-muted)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                      {s.model.split(":")[0]}
-                    </div>
+                    <span className="fonia-pill" style={{ maxWidth: "100%", overflow: "hidden" }}>
+                      {s.model}
+                    </span>
                   </>
                 )}
               </div>
@@ -375,6 +393,16 @@ export default function Sidebar({
           ))}
         </div>
       )}
+      <div className="fonia-side-foot">
+        <button type="button" className="fonia-btn fonia-set-open" onClick={() => window.dispatchEvent(new Event("fonia-open-settings"))}>
+          <svg className="fonia-set-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="3" />
+            <path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M18.4 5.6 17 7M7 17l-1.4 1.4" />
+          </svg>
+          Settings
+        </button>
+        <div className="fonia-mono">{freeMemoryMb == null ? "RAM —" : `RAM ${freeMemoryMb} MB free`}</div>
+      </div>
     </aside>
   );
 }

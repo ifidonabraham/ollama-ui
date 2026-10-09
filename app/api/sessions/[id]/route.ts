@@ -5,6 +5,8 @@ import {
   updateSession,
   deleteSession,
   clearMessages,
+  getAgentState,
+  listAgentJobs,
 } from "@/lib/db";
 
 type Params = { params: Promise<{ id: string }> };
@@ -16,8 +18,9 @@ export async function GET(_req: NextRequest, { params }: Params) {
     if (!session) {
       return NextResponse.json({ error: "Session not found" }, { status: 404 });
     }
-    const messages = getMessages(id);
-    return NextResponse.json({ session, messages });
+    const messages = getMessages(id, "chat");
+    const agent_messages = getMessages(id, "agent");
+    return NextResponse.json({ session, messages, agent_messages, agent_state: getAgentState(id), agent_jobs: listAgentJobs(id) });
   } catch (err) {
     console.error("[session GET]", err);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });

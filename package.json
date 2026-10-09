@@ -6,21 +6,27 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test:intent": "tsx --test tests/intent.test.ts tests/agentEvidence.test.ts tests/answerModels.test.ts tests/directAction.test.ts tests/compact.test.ts tests/modelRelay.test.ts tests/mediaTasks.test.ts tests/computerAction.test.ts tests/commandUnderstand.test.ts tests/goalRun.test.ts tests/awayIntent.test.ts tests/devResources.test.ts tests/intentAsk.test.ts tests/blenderScene.test.ts tests/appConnections.test.ts tests/plainResult.test.ts tests/commandRun.test.ts"
   },
   "dependencies": {
+    "better-sqlite3": "^13.0.3",
+    "highlight.js": "^11.12.0",
+    "marked": "^18.0.14",
     "next": "16.3.6",
     "react": "19.2.8",
     "react-dom": "19.2.8"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@types/better-sqlite3": "^9.6.0",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.3.6",
     "tailwindcss": "^4",
+    "tsx": "^4.23.15",
     "typescript": "^5"
   }
 }

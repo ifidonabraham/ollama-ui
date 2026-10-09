@@ -1,0 +1,408 @@
+{
+  "schema": 1,
+  "updated": "2026-10-09",
+  "reusable": "Any local project can read this file. A second copy lives at %LOCALAPPDATA%\\Fonia\\resources\\dev-catalog.json. Paths below are evidence from this PC. The choice of stack is the same on another machine once its own install check is written here.",
+  "listed_not_downloaded": {
+    "website": [],
+    "web3d": ["three.js", "@react-three/fiber", "@react-three/drei", "@react-three/rapier", "@react-three/postprocessing", "gltfjsx", "model-viewer", "Babylon.js", "PlayCanvas", "A-Frame", "Spline", "Theatre.js"],
+    "files": ["glTF", "GLB", "FBX", "OBJ", "USDZ"],
+    "desktop3d": ["Blender bpy", "Godot", "Unity", "Unreal"]
+  },
+  "audit": {
+    "projects": 42,
+    "manifests": 72,
+    "note": "Counted package.json dependencies under A.I projects and nearby project folders, skipping node_modules. Python names are from the Python 3.12 pip list. A library that appears only inside a requirements file is declared, not installed in that interpreter."
+  },
+  "tools": [
+    {
+      "id": "next",
+      "name": "Next.js",
+      "kind": "web",
+      "status": "installed",
+      "projects": 13,
+      "prefer_over": ["html"],
+      "when": "A website, dashboard, or web app. Use the Next.js App Router with React. Do not start a plain HTML page when this workspace depends on next, or when the user asked for a website.",
+      "evidence": ["ollama-ui", "fonia-labs-starter", "fontech-site", "SMaid/apps/web", "stormbrigde", "contractfeed"]
+    },
+    {
+      "id": "react",
+      "name": "React",
+      "kind": "web",
+      "status": "installed",
+      "projects": 28,
+      "prefer_over": ["html"],
+      "when": "The interface layer inside Next.js or Vite. This is the repeating UI library on this PC.",
+      "evidence": ["28 package.json files"]
+    },
+    {
+      "id": "typescript",
+      "name": "TypeScript",
+      "kind": "language",
+      "status": "installed",
+      "projects": 19,
+      "prefer_over": [],
+      "when": "New web and Node code in a project that already has TypeScript.",
+      "evidence": ["19 package.json files"]
+    },
+    {
+      "id": "tailwindcss",
+      "name": "Tailwind CSS",
+      "kind": "ui",
+      "status": "installed",
+      "projects": 15,
+      "prefer_over": [],
+      "when": "Styling for a Next.js or Vite interface that already uses Tailwind.",
+      "evidence": ["15 package.json files"]
+    },
+    {
+      "id": "vite",
+      "name": "Vite",
+      "kind": "web",
+      "status": "installed",
+      "projects": 10,
+      "prefer_over": [],
+      "when": "Stay on Vite when the open workspace is a Vite app. Do not convert it to Next.js in the same task.",
+      "evidence": ["10 package.json files"]
+    },
+    {
+      "id": "supabase",
+      "name": "Supabase",
+      "kind": "data",
+      "status": "installed",
+      "projects": 12,
+      "prefer_over": ["prisma"],
+      "when": "Auth and database in a project that already depends on @supabase/supabase-js.",
+      "evidence": ["12 package.json files"]
+    },
+    {
+      "id": "zod",
+      "name": "Zod",
+      "kind": "data",
+      "status": "installed",
+      "projects": 7,
+      "prefer_over": [],
+      "when": "Validate input in a TypeScript project that already depends on zod.",
+      "evidence": ["7 package.json files"]
+    },
+    {
+      "id": "recharts",
+      "name": "Recharts",
+      "kind": "ui",
+      "status": "installed",
+      "projects": 6,
+      "prefer_over": ["chart.js"],
+      "when": "Charts in a React page. chart.js was not in the repeating set.",
+      "evidence": ["6 package.json files"]
+    },
+    {
+      "id": "three",
+      "name": "three.js",
+      "kind": "3d",
+      "status": "installed",
+      "projects": 5,
+      "prefer_over": [],
+      "when": "A 3D or interactive section. Use three with @react-three/fiber and @react-three/drei inside the existing Next.js or Vite app. Do not replace the whole site with a raw three.js page.",
+      "evidence": ["projhtml", "SMaid/apps/web", "task-a-review-webapp frontends"]
+    },
+    {
+      "id": "playwright",
+      "name": "Playwright",
+      "kind": "test",
+      "status": "installed",
+      "projects": 4,
+      "prefer_over": [],
+      "when": "Browser checks in a project that already depends on playwright. This Fonia app uses node:test, not Playwright, for its intent tests.",
+      "evidence": ["fonia-labs-starter", "4 package.json files"]
+    },
+    {
+      "id": "vitest",
+      "name": "Vitest",
+      "kind": "test",
+      "status": "installed",
+      "projects": 10,
+      "prefer_over": [],
+      "when": "Unit tests in a Vite project that already has vitest.",
+      "evidence": ["10 package.json files"]
+    },
+    {
+      "id": "express",
+      "name": "Express",
+      "kind": "api",
+      "status": "installed",
+      "projects": 4,
+      "prefer_over": [],
+      "when": "A small Node HTTP API when the workspace already uses Express.",
+      "evidence": ["4 package.json files"]
+    },
+    {
+      "id": "pg",
+      "name": "node-postgres",
+      "kind": "data",
+      "status": "installed",
+      "projects": 3,
+      "prefer_over": ["prisma"],
+      "when": "Postgres from Node when the workspace already depends on pg. Prisma was not found.",
+      "evidence": ["3 package.json files"]
+    },
+    {
+      "id": "react-hook-form",
+      "name": "React Hook Form",
+      "kind": "ui",
+      "status": "installed",
+      "projects": 3,
+      "prefer_over": [],
+      "when": "Forms in a React project that already depends on it.",
+      "evidence": ["3 package.json files"]
+    },
+    {
+      "id": "framer-motion",
+      "name": "Framer Motion",
+      "kind": "ui",
+      "status": "installed",
+      "projects": 3,
+      "prefer_over": [],
+      "when": "Motion in a React project that already depends on framer-motion.",
+      "evidence": ["3 package.json files"]
+    },
+    {
+      "id": "react-native",
+      "name": "React Native",
+      "kind": "mobile",
+      "status": "installed",
+      "projects": 4,
+      "prefer_over": ["kivy"],
+      "when": "A phone app. Expo is declared in 3 of these projects. Use Kivy only inside a handnote project that already lists it.",
+      "evidence": ["4 package.json files", "expo in 3"]
+    },
+    {
+      "id": "fastapi",
+      "name": "FastAPI",
+      "kind": "python",
+      "status": "installed",
+      "projects": 3,
+      "prefer_over": ["flask"],
+      "when": "A Python API. FastAPI and uvicorn are on the Python 3.12 interpreter. Also declared in ComplyIQ, task-a-review-webapp, and whatsapp-ai-bot.",
+      "evidence": ["Python 3.12 pip", "ComplyIQ/backend/requirements.txt"]
+    },
+    {
+      "id": "httpx",
+      "name": "httpx",
+      "kind": "python",
+      "status": "installed",
+      "projects": 1,
+      "prefer_over": ["beautifulsoup"],
+      "when": "HTTP from Python. It is on the interpreter. For HTML, Beautiful Soup 4.14.3 is also on this interpreter.",
+      "evidence": ["Python 3.12 pip"]
+    },
+    {
+      "id": "better-sqlite3",
+      "name": "better-sqlite3",
+      "kind": "data",
+      "status": "installed",
+      "projects": 1,
+      "prefer_over": [],
+      "when": "Local SQLite inside this Fonia app only. Do not add it to an unrelated website.",
+      "evidence": ["ollama-ui/package.json"]
+    },
+    {
+      "id": "node",
+      "name": "Node.js",
+      "kind": "runtime",
+      "status": "installed",
+      "projects": 0,
+      "prefer_over": [],
+      "when": "JavaScript and Next.js work. npm and pnpm are on PATH. yarn is not.",
+      "evidence": ["C:\\nvm4w\\nodejs\\node.exe"]
+    },
+    {
+      "id": "python",
+      "name": "Python",
+      "kind": "runtime",
+      "status": "installed",
+      "projects": 0,
+      "prefer_over": [],
+      "when": "Python 3.12 is installed. Use it for FastAPI and scripts. Do not assume every library in a requirements file is installed in this interpreter.",
+      "evidence": ["C:\\Users\\PC\\AppData\\Local\\Programs\\Python\\Python312\\python.exe"]
+    },
+    {
+      "id": "git",
+      "name": "Git",
+      "kind": "runtime",
+      "status": "installed",
+      "projects": 0,
+      "prefer_over": [],
+      "when": "Source control.",
+      "evidence": ["C:\\Program Files\\Git\\cmd\\git.exe"]
+    },
+    {
+      "id": "ffmpeg",
+      "name": "ffmpeg",
+      "kind": "runtime",
+      "status": "installed",
+      "projects": 0,
+      "prefer_over": [],
+      "when": "Video frames and microphone audio. Already used by Fonia.",
+      "evidence": ["C:\\Users\\PC\\AppData\\Local\\Microsoft\\WinGet\\Links\\ffmpeg.exe"]
+    },
+    {
+      "id": "docker",
+      "name": "Docker",
+      "kind": "runtime",
+      "status": "installed",
+      "projects": 0,
+      "prefer_over": [],
+      "when": "Containers when the user asks. Do not start a new database container for a task that the workspace already solves with Supabase or a local file.",
+      "evidence": ["C:\\Program Files\\Docker\\Docker\\resources\\bin\\docker.exe"]
+    },
+    {
+      "id": "dotnet",
+      "name": ".NET",
+      "kind": "runtime",
+      "status": "installed",
+      "projects": 0,
+      "prefer_over": [],
+      "when": "A C# project when one is open. It is not the repeating website stack.",
+      "evidence": ["C:\\Program Files\\dotnet\\dotnet.exe"]
+    },
+    {
+      "id": "java",
+      "name": "Java",
+      "kind": "runtime",
+      "status": "installed",
+      "projects": 0,
+      "prefer_over": [],
+      "when": "A Java project when one is open. JDK 17 is installed. It is not the repeating website stack.",
+      "evidence": ["C:\\Program Files\\Microsoft\\jdk-17.0.19.10-hotspot\\bin\\java.exe"]
+    },
+    {
+      "id": "django",
+      "name": "Django",
+      "kind": "python",
+      "status": "installed",
+      "projects": 2,
+      "prefer_over": [],
+      "when": "Django 6.1.2 is on the Python 3.12 interpreter, and codeerax already lists it. A new website still uses Next.js.",
+      "evidence": ["Python 3.12 pip", "C:\\Users\\PC\\codeerax-engine-api\\requirements.txt"]
+    },
+    {
+      "id": "flask",
+      "name": "Flask",
+      "kind": "python",
+      "status": "installed",
+      "projects": 1,
+      "prefer_over": [],
+      "when": "Flask 3.0.0 is on the Python 3.12 interpreter, and the microblog project already lists it. A new website still uses Next.js.",
+      "evidence": ["Python 3.12 pip", "C:\\Users\\PC\\A.I projects\\microblog\\requirements.txt"]
+    },
+    {
+      "id": "pillow",
+      "name": "Pillow",
+      "kind": "python",
+      "status": "declared",
+      "projects": 1,
+      "prefer_over": [],
+      "when": "Image files in codeerax, whose requirements list Pillow. It is not on the global interpreter.",
+      "evidence": ["C:\\Users\\PC\\codeerax-engine-api\\requirements.txt"]
+    },
+    {
+      "id": "kivy",
+      "name": "Kivy",
+      "kind": "mobile",
+      "status": "declared",
+      "projects": 1,
+      "prefer_over": [],
+      "when": "handnote already lists Kivy. A new phone app on this PC uses React Native and Expo.",
+      "evidence": ["C:\\Users\\PC\\A.I projects\\handnote\\requirements.txt"]
+    },
+    {
+      "id": "beautifulsoup",
+      "name": "Beautiful Soup",
+      "kind": "python",
+      "status": "installed",
+      "projects": 0,
+      "prefer_over": [],
+      "when": "HTML parsing. beautifulsoup4 4.14.3 is on the Python 3.12 interpreter.",
+      "evidence": ["Python 3.12 pip"]
+    },
+    {
+      "id": "cheerio",
+      "name": "cheerio",
+      "kind": "web",
+      "status": "absent",
+      "projects": 0,
+      "prefer_over": [],
+      "when": "HTML parsing in Node. It was not in the scanned package.json files.",
+      "evidence": []
+    },
+    {
+      "id": "prisma",
+      "name": "Prisma",
+      "kind": "data",
+      "status": "installed",
+      "projects": 0,
+      "prefer_over": [],
+      "when": "Prisma is in %LOCALAPPDATA%\\Fonia\\resources\\web-libs for another project. It is not a dependency of this Fonia app. Use Supabase or pg when the open project already has them.",
+      "evidence": ["%LOCALAPPDATA%\\Fonia\\resources\\web-libs"]
+    },
+    {
+      "id": "stripe",
+      "name": "Stripe",
+      "kind": "web",
+      "status": "installed",
+      "projects": 0,
+      "prefer_over": [],
+      "when": "The stripe package is in the Fonia resources folder. It is not wired into Fonia. A payment still needs your own Stripe key.",
+      "evidence": ["%LOCALAPPDATA%\\Fonia\\resources\\web-libs"]
+    },
+    {
+      "id": "pandas",
+      "name": "pandas",
+      "kind": "python",
+      "status": "absent",
+      "projects": 0,
+      "prefer_over": [],
+      "when": "Tables in Python. Not on the interpreter. Do not import it until it is installed.",
+      "evidence": []
+    },
+    {
+      "id": "leaflet",
+      "name": "Leaflet",
+      "kind": "web",
+      "status": "installed",
+      "projects": 0,
+      "prefer_over": [],
+      "when": "leaflet and mapbox-gl are in the Fonia resources folder. Mapbox still needs your own token. Neither package is part of this Fonia app.",
+      "evidence": ["%LOCALAPPDATA%\\Fonia\\resources\\web-libs"]
+    },
+    {
+      "id": "go",
+      "name": "Go",
+      "kind": "runtime",
+      "status": "absent",
+      "projects": 0,
+      "prefer_over": [],
+      "when": "Go is not installed. A new service on this PC uses Node or FastAPI.",
+      "evidence": []
+    },
+    {
+      "id": "rust",
+      "name": "Rust",
+      "kind": "runtime",
+      "status": "absent",
+      "projects": 0,
+      "prefer_over": [],
+      "when": "Rust and Cargo are not installed.",
+      "evidence": []
+    },
+    {
+      "id": "php",
+      "name": "PHP",
+      "kind": "runtime",
+      "status": "absent",
+      "projects": 0,
+      "prefer_over": [],
+      "when": "PHP and Composer are not installed. A website uses Next.js.",
+      "evidence": []
+    }
+  ]
+}
