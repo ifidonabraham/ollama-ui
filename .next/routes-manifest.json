@@ -1,0 +1,188 @@
+{
+  "version": 3,
+  "pages404": true,
+  "appType": "app",
+  "caseSensitive": false,
+  "basePath": "",
+  "redirects": [
+    {
+      "source": "/:path+/",
+      "destination": "/:path+",
+      "internal": true,
+      "priority": true,
+      "statusCode": 308,
+      "regex": "^(?:/((?:[^/]+?)(?:/(?:[^/]+?))*))/$"
+    }
+  ],
+  "headers": [],
+  "onMatchHeaders": [],
+  "rewrites": {
+    "beforeFiles": [],
+    "afterFiles": [],
+    "fallback": []
+  },
+  "dynamicRoutes": [
+    {
+      "page": "/api/agent/jobs/[id]",
+      "regex": "^/api/agent/jobs/([^/]+?)(?:/)?$",
+      "routeKeys": {
+        "nxtPid": "nxtPid"
+      },
+      "namedRegex": "^/api/agent/jobs/(?<nxtPid>[^/]+?)(?:/)?$"
+    },
+    {
+      "page": "/api/sessions/[id]",
+      "regex": "^/api/sessions/([^/]+?)(?:/)?$",
+      "routeKeys": {
+        "nxtPid": "nxtPid"
+      },
+      "namedRegex": "^/api/sessions/(?<nxtPid>[^/]+?)(?:/)?$"
+    }
+  ],
+  "staticRoutes": [
+    {
+      "page": "/",
+      "regex": "^/(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/(?:/)?$"
+    },
+    {
+      "page": "/_global-error",
+      "regex": "^/_global\\-error(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/_global\\-error(?:/)?$"
+    },
+    {
+      "page": "/_not-found",
+      "regex": "^/_not\\-found(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/_not\\-found(?:/)?$"
+    },
+    {
+      "page": "/api/agent",
+      "regex": "^/api/agent(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/agent(?:/)?$"
+    },
+    {
+      "page": "/api/agent/cancel",
+      "regex": "^/api/agent/cancel(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/agent/cancel(?:/)?$"
+    },
+    {
+      "page": "/api/agent/steer",
+      "regex": "^/api/agent/steer(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/agent/steer(?:/)?$"
+    },
+    {
+      "page": "/api/chat",
+      "regex": "^/api/chat(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/chat(?:/)?$"
+    },
+    {
+      "page": "/api/files",
+      "regex": "^/api/files(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/files(?:/)?$"
+    },
+    {
+      "page": "/api/files/restore",
+      "regex": "^/api/files/restore(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/files/restore(?:/)?$"
+    },
+    {
+      "page": "/api/fonia/connections",
+      "regex": "^/api/fonia/connections(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/fonia/connections(?:/)?$"
+    },
+    {
+      "page": "/api/fonia/heard",
+      "regex": "^/api/fonia/heard(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/fonia/heard(?:/)?$"
+    },
+    {
+      "page": "/api/fonia/listen",
+      "regex": "^/api/fonia/listen(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/fonia/listen(?:/)?$"
+    },
+    {
+      "page": "/api/fonia/settings",
+      "regex": "^/api/fonia/settings(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/fonia/settings(?:/)?$"
+    },
+    {
+      "page": "/api/index",
+      "regex": "^/api/index(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/index(?:/)?$"
+    },
+    {
+      "page": "/api/models",
+      "regex": "^/api/models(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/models(?:/)?$"
+    },
+    {
+      "page": "/api/sessions",
+      "regex": "^/api/sessions(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/sessions(?:/)?$"
+    },
+    {
+      "page": "/api/terminal",
+      "regex": "^/api/terminal(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/terminal(?:/)?$"
+    },
+    {
+      "page": "/api/unload",
+      "regex": "^/api/unload(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/unload(?:/)?$"
+    },
+    {
+      "page": "/api/upload",
+      "regex": "^/api/upload(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/upload(?:/)?$"
+    },
+    {
+      "page": "/api/workspace",
+      "regex": "^/api/workspace(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/workspace(?:/)?$"
+    },
+    {
+      "page": "/favicon.ico",
+      "regex": "^/favicon\\.ico(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/favicon\\.ico(?:/)?$"
+    }
+  ],
+  "dataRoutes": [],
+  "rsc": {
+    "header": "rsc",
+    "varyHeader": "rsc, next-router-state-tree, next-router-prefetch, next-router-segment-prefetch",
+    "prefetchHeader": "next-router-prefetch",
+    "didPostponeHeader": "x-nextjs-postponed",
+    "contentTypeHeader": "text/x-component",
+    "suffix": ".rsc",
+    "prefetchSegmentHeader": "next-router-segment-prefetch",
+    "prefetchSegmentSuffix": ".segment.rsc",
+    "prefetchSegmentDirSuffix": ".segments",
+    "clientParamParsing": false,
+    "dynamicRSCPrerender": false
+  },
+  "rewriteHeaders": {
+    "pathHeader": "x-nextjs-rewritten-path",
+    "queryHeader": "x-nextjs-rewritten-query"
+  }
+}

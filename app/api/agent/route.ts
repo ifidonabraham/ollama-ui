@@ -5,7 +5,7 @@ import path from "path";
 import { exec } from "child_process";
 import { promisify } from "util";
 import { isReachable, listLoadedModels, releaseLoadedModels, resolveOllamaHost, isCloudConfigured, waitForModelServer, withOllamaModelLock } from "@/lib/ollama";
-import { codingUsesBrain, encodeModelChoice, fallbackChoices, fallbackReason, nextModelAfterStall, pickBrainModel, pickFallbackCoder, pickHandsModel, pickStrongCoder, pickVisionModel } from "@/lib/modelRelay";
+import { codingUsesBrain, describeModelFailure, encodeModelChoice, fallbackChoices, fallbackReason, nextModelAfterStall, pickBrainModel, pickFallbackCoder, pickHandsModel, pickStrongCoder, pickVisionModel } from "@/lib/modelRelay";
 import { awayWorkNote, machineRestCommand, personIsSteppingAway } from "@/lib/awayIntent";
 import { buildClarification, intentForMode, needsUnderstanding, parseModeProposal, understandInstruction, type ModeProposal } from "@/lib/intentAsk";
 import { connectionBlock, connectionStartedNote, connectionStance, matchConnection } from "@/lib/appConnections";
@@ -19,7 +19,7 @@ import { extractVideoFrames, toolEnv } from "@/lib/videoFrames";
 import { releaseExtraApps, runComputerAction } from "@/lib/computerActions";
 import { answerRequiresEvidence, classifyIntent, imageStaysWithVision, refersToPriorAction } from "@/lib/intent";
 import { createJob, isJobCancelled, takeSteerNotes, updateJob } from "@/lib/jobs";
-import { addMessage, getAgentState, getSession, updateAgentState } from "@/lib/db";
+import { addMessage, getAgentState, getSession, sessionTitleFromMessage, updateAgentState, updateSession } from "@/lib/db";
 import { extractToolCalls, type ToolCall } from "@/lib/toolCalls";
 import {
   answerFromPriorAction,
@@ -163,8 +163,9 @@ function isUserCancel(error: unknown): boolean {
 
 function plainFailureReason(model: string, message: string): string {
   const waited = message.match(/(\d+) second/i);
+  const specific = describeModelFailure(model, message);
+  if (specific) return specific;
   if (/timeout/i.test(message)) return fallbackReason(model, "timeout", waited ? Number(waited[1]) : undefined);
-  if (/not found/i.test(message)) return `${model} is not installed. Retry it after installing it, or choose a different model.`;
   const detail = readableModelError(message)
     .replace(/Cannot reach Ollama:\s*/gi, "")
     .replace(/Ollama error:\s*/gi, "")
@@ -963,6 +964,12 @@ export async function POST(req: NextRequest) {
           const userMessage = messages[messages.length - 1];
           const confirmedText = typeof confirmed_text === "string" ? confirmed_text.trim() : "";
           if (confirmedText) userMessage.content = confirmedText;
+          if (session_id) {
+            const named = getSession(session_id);
+            if (named && named.title === "New Chat") {
+              updateSession(session_id, { title: sessionTitleFromMessage(userMessage.content) });
+            }
+          }
           const hasImages   = images && images.length > 0;
           const settings = readFoniaSettings();
           const confirmedMode = typeof confirmed_mode === "string" ? confirmed_mode : "";
@@ -1042,6 +1049,12 @@ export async function POST(req: NextRequest) {
             const chosen = intentForMode(confirmedMode);
             if (chosen) intentDecision = chosen;
           } else if (!hasImages && !machineRestCommand(userMessage.content) && !directUserAction(userMessage.content)) {
+            const unsafe = understandCommand(userMessage.content);
+            if (unsafe && !unsafe.safeToRun) {
+              await emitText("That request includes a destructive command, so nothing was run.", SERVER_ANSWER);
+              updateJob(jobId, { status: "completed", phase: "complete", model: "", role: "server" });
+              return;
+            }
             let proposal: ModeProposal | null = null;
             const muddy = settings.understandFirst && needsUnderstanding(userMessage.content);
             if (muddy && ollamaBase) {

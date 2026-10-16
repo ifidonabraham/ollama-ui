@@ -7,7 +7,7 @@ import { findFfmpeg, toolEnv } from "./videoFrames";
 
 import { brightnessScript, clipboardScript, defaultsScript, themeScript, uiScript, updatesScript } from "./systemControls";
 import { appsToClose, type RunningApp } from "./awayIntent";
-import { applyMicMode } from "./foniaMic";
+import { applyMicMode, clearVoiceLive, voiceLivePath } from "./foniaMic";
 import { readFoniaSettings, writeFoniaSettings } from "./foniaSettings";
 
 const execFileAsync = promisify(execFile);
@@ -488,7 +488,8 @@ export async function runComputerAction(action: string, target = ""): Promise<st
   }
   if (action === "listen") {
     const seconds = Math.min(30, Math.max(6, Number(target) || 12));
-    const heard = await runPowerShell(listenScript(seconds), (seconds + 25) * 1000);
+    clearVoiceLive();
+    const heard = await runPowerShell(listenScript(seconds, voiceLivePath()), (seconds + 25) * 1000);
     if (speechEngineFailed(heard)) {
       if (!readFoniaSettings().whisperFallback) return "The speech recognizer failed. Whisper fallback is off in Settings.";
       return captureMicrophone(Math.min(seconds, 10));
@@ -639,7 +640,7 @@ function microphoneScript(off: boolean): string {
     "    return (IAudioEndpointVolume)pointer;",
     "  }",
     "  static string Read(IAudioEndpointVolume v) { float level; bool mute; v.GetMasterVolumeLevelScalar(out level); v.GetMute(out mute); return \"muted=\" + mute + \" level=\" + Math.Round(level * 100); }",
-    "  public static string Apply(string mode, int role) { var v = Volume(role); var ctx = Guid.Empty; if (mode == \"mute\") { v.SetMute(true, ctx); v.SetMasterVolumeLevelScalar(0f, ctx); } else if (mode == \"unmute\") { v.SetMute(false, ctx); } return Read(v); }",
+    "  public static string Apply(string mode, int role) { var v = Volume(role); var ctx = Guid.Empty; if (mode == \"mute\") { v.SetMute(true, ctx); v.SetMasterVolumeLevelScalar(0f, ctx); } else if (mode == \"unmute\") { v.SetMute(false, ctx); float now; v.GetMasterVolumeLevelScalar(out now); if (now < 0.4f) v.SetMasterVolumeLevelScalar(0.8f, ctx); } return Read(v); }",
     "}",
     "'@",
     "} catch {",
@@ -674,20 +675,25 @@ function deviceScript(enable: boolean, query: string): string {
   ].join("\n");
 }
 
-function listenScript(seconds: number): string {
+function listenScript(seconds: number, livePath: string): string {
   const initial = Math.min(30, Math.max(6, Math.round(seconds)));
   const babble = initial >= 12 ? 8 : 3;
+  const live = livePath.replace(/'/g, "''");
   return [
     "$ErrorActionPreference = 'Stop'",
+    `$liveFile = '${live}'`,
+    "New-Item -ItemType Directory -Force -Path (Split-Path -Parent $liveFile) | Out-Null",
+    "Set-Content -LiteralPath $liveFile -Value '' -Encoding utf8",
     "Add-Type -AssemblyName System.Speech",
     "$engine = New-Object System.Speech.Recognition.SpeechRecognitionEngine",
     "$engine.LoadGrammar((New-Object System.Speech.Recognition.DictationGrammar))",
     "$engine.SetInputToDefaultAudioDevice()",
     `$engine.InitialSilenceTimeout = [TimeSpan]::FromSeconds(${initial})`,
     `$engine.BabbleTimeout = [TimeSpan]::FromSeconds(${babble})`,
-    "$engine.EndSilenceTimeout = [TimeSpan]::FromSeconds(2)",
+    "$engine.EndSilenceTimeout = [TimeSpan]::FromSeconds(1)",
+    "$engine.add_SpeechHypothesized({ param($sender, $e) [IO.File]::WriteAllText($liveFile, [string]$e.Result.Text) }.GetNewClosure())",
     "$result = $engine.Recognize()",
-    "if ($null -eq $result -or [string]::IsNullOrWhiteSpace($result.Text)) { 'No speech recognized.' } else { \"Heard: $($result.Text)\" }",
+    "if ($null -ne $result -and -not [string]::IsNullOrWhiteSpace($result.Text)) { [IO.File]::WriteAllText($liveFile, [string]$result.Text); \"Heard: $($result.Text)\" } else { 'No speech recognized.' }",
     "$engine.Dispose()",
-  ].join("; ");
+  ].join("\n");
 }

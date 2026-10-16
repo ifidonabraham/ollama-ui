@@ -20,6 +20,24 @@ export function stopMic(): void {
   scriptPath = "";
 }
 
+export function voiceLivePath(): string {
+  return path.join(process.cwd(), ".data", "voice-live.txt");
+}
+
+export function clearVoiceLive(): void {
+  const file = voiceLivePath();
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  fs.writeFileSync(file, "", "utf8");
+}
+
+export function readVoiceLive(): string {
+  try {
+    return fs.readFileSync(voiceLivePath(), "utf8").replace(/^\uFEFF/, "").trim();
+  } catch {
+    return "";
+  }
+}
+
 export function takeHeard(): string[] {
   const lines = heard.splice(0, heard.length).map((line) => line.trim()).filter(Boolean);
   return lines.slice(-1);

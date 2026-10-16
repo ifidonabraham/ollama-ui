@@ -1,6 +1,6 @@
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
-import { codingUsesBrain, decodeModelChoice, encodeModelChoice, fallbackChoices, fallbackReason, nextModelAfterStall, pickBrainModel, pickFallbackCoder, pickHandsModel, pickVisionModel } from "../lib/modelRelay";
+import { codingUsesBrain, decodeModelChoice, describeModelFailure, encodeModelChoice, fallbackChoices, fallbackReason, nextModelAfterStall, pickBrainModel, pickFallbackCoder, pickHandsModel, pickVisionModel } from "../lib/modelRelay";
 import { estimateModelMb, inferenceBudgetMs, nextWait } from "../lib/inferenceBudget";
 import { parseAdjusterKind } from "../lib/promptAdjust";
 
@@ -11,6 +11,13 @@ const installed = [
   "qwen3:8b",
   "qwen2.5-coder:7b",
 ];
+
+test("a missing runner is not reported as a missing model", () => {
+  const runner = 'error starting llama-server: llama-server binary not found (checked: C:\\Ollama\\llama-server.exe)';
+  assert.match(describeModelFailure("qwen2.5-coder:3b", runner) ?? "", /is installed/);
+  assert.match(describeModelFailure("qwen2.5-coder:3b", "model 'qwen2.5-coder:3b' not found") ?? "", /is not installed/);
+  assert.equal(describeModelFailure("qwen2.5-coder:3b", "connection refused"), null);
+});
 
 test("the hands model is the 7B coder, not the 14B quant", () => {
   assert.equal(pickHandsModel(installed), "qwen2.5-coder:7b");

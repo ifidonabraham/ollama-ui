@@ -1,6 +1,17 @@
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
-import { runProcessBounded, silenceNote } from "../lib/commandRun";
+import { quoteSpacedPaths, runProcessBounded, silenceNote } from "../lib/commandRun";
+
+test("a path with a space is quoted on both sides", () => {
+  assert.equal(quoteSpacedPaths('cd C:\\Users\\PC\\A.I projects'), 'cd "C:\\Users\\PC\\A.I projects"');
+  assert.equal(quoteSpacedPaths('cd "C:\\Users\\PC\\A.I projects"'), 'cd "C:\\Users\\PC\\A.I projects"');
+  assert.equal(quoteSpacedPaths('cd C:\\Users\\PC\\"A.I projects"'), 'cd "C:\\Users\\PC\\A.I projects"');
+  assert.equal(
+    quoteSpacedPaths('Get-ChildItem C:\\Users\\PC\\A.I projects -Name'),
+    'Get-ChildItem "C:\\Users\\PC\\A.I projects" -Name'
+  );
+  assert.equal(quoteSpacedPaths('cd C:\\Users\\PC\\ollama-ui'), "cd C:\\Users\\PC\\ollama-ui");
+});
 
 test("a silent process is stopped and a fast process is kept", async () => {
   const silent = await runProcessBounded(process.execPath, ["-e", "setTimeout(() => {}, 8000)"], {

@@ -109,6 +109,8 @@ interface Props {
   systemPrompt: string;
   onRemoveContextFile: (path: string) => void;
   onStopGeneration: () => void;
+  sessionTitle?: string;
+  onRenameSession?: (title: string) => void;
   workspacePath?: string;
   ollamaSource?: "local" | "cloud" | "offline";
 }
@@ -663,7 +665,7 @@ export default function ChatWindow({
   contextFiles, onSend, onResend, onRegenerate, onModelChange,
   pickModelForTask,
   onClearHistory, onSystemPromptChange, systemPrompt,
-  onRemoveContextFile, onStopGeneration, workspacePath, ollamaSource = "local",
+  onRemoveContextFile, onStopGeneration, sessionTitle, onRenameSession, workspacePath, ollamaSource = "local",
 }: Props) {
   const [input, setInput] = useState("");
   const [showSystem, setShowSystem] = useState(false);
@@ -699,7 +701,12 @@ export default function ChatWindow({
   const [pendingDiffs, setPendingDiffs] = useState<DiffEvent[]>([]); // diffs waiting for accept/reject
   const [diffDecision, setDiffDecision] = useState<Record<string, "kept" | "restored">>({});
   const [hearing, setHearing] = useState(false);
+  const [voiceLevel, setVoiceLevel] = useState(0);
   const agentAbortRef = useRef<AbortController | null>(null);
+  const hearingRef = useRef(false);
+  const listenGen = useRef(0);
+  const voiceStopRef = useRef<(() => void) | null>(null);
+  hearingRef.current = hearing;
   const agentJobRef = useRef<string | null>(null);
   const agentRunRef = useRef(0);
   const agentRunningRef = useRef(false);
@@ -840,13 +847,50 @@ export default function ChatWindow({
       });
     }
     agentAbortRef.current?.abort();
+    agentRunningRef.current = false;
+    setAgentRunning(false);
   }
+
+  function stopHearing() {
+    listenGen.current += 1;
+    setHearing(false);
+    setVoiceLevel(0);
+    voiceStopRef.current?.();
+    voiceStopRef.current = null;
+  }
+
+  useEffect(() => {
+    function onKey(event: KeyboardEvent) {
+      const running = agentRunningRef.current || hearingRef.current;
+      if (!running) return;
+      if (event.key === "Escape") {
+        event.preventDefault();
+        stopAgentRun();
+        stopHearing();
+        return;
+      }
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "c" && !event.shiftKey) {
+        const selected = window.getSelection()?.toString() ?? "";
+        if (selected.trim()) return;
+        event.preventDefault();
+        stopAgentRun();
+        stopHearing();
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onStopGeneration]);
 
   async function sendAgent(userMessage: string, images?: string[], selectedModel = model, modelLocked = false, force = false, allowWeb = false, confirmedMode = "", confirmedText = "") {
     if (!userMessage.trim()) return;
     if (agentRunningRef.current) {
       if (!force) return;
       stopAgentRun();
+    }
+
+    if (sessionTitle === "New Chat" && onRenameSession) {
+      const clean = userMessage.replace(/\s+/g, " ").trim();
+      if (clean) onRenameSession(clean.length > 42 ? `${clean.slice(0, 42)}…` : clean);
     }
 
     const outbound = confirmedText.trim() || userMessage;
@@ -1192,22 +1236,78 @@ export default function ChatWindow({
     if (sessionId) void sendAgent(text);
   };
 
+  async function startVoiceMeter(): Promise<void> {
+    voiceStopRef.current?.();
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const context = new AudioContext();
+      const source = context.createMediaStreamSource(stream);
+      const analyser = context.createAnalyser();
+      analyser.fftSize = 256;
+      source.connect(analyser);
+      const samples = new Uint8Array(analyser.fftSize);
+      let frame = 0;
+      const tick = () => {
+        analyser.getByteTimeDomainData(samples);
+        let sum = 0;
+        for (const sample of samples) {
+          const centered = (sample - 128) / 128;
+          sum += centered * centered;
+        }
+        setVoiceLevel(Math.min(1, Math.sqrt(sum / samples.length) * 4));
+        frame = requestAnimationFrame(tick);
+      };
+      frame = requestAnimationFrame(tick);
+      voiceStopRef.current = () => {
+        cancelAnimationFrame(frame);
+        stream.getTracks().forEach((track) => track.stop());
+        void context.close();
+        setVoiceLevel(0);
+      };
+    } catch {
+      setAgentStatus("The browser cannot hear the microphone. Windows speech is still listening.");
+    }
+  }
+
   async function pressListen() {
+    const gen = listenGen.current + 1;
+    listenGen.current = gen;
     setHearing(true);
-    setAgentStatus("Listening…");
+    setInput("");
+    setAgentStatus("Listening. The words will appear here.");
+    await startVoiceMeter();
+    const poll = window.setInterval(() => {
+      void fetch("/api/fonia/heard")
+        .then((response) => response.json())
+        .then((data: { live?: string }) => {
+          if (listenGen.current === gen && data.live?.trim()) setInput(data.live.trim());
+        })
+        .catch(() => undefined);
+    }, 400);
     try {
       const response = await fetch("/api/fonia/listen", { method: "POST" });
       const data = await response.json() as { text?: string; message?: string };
-      if (data.text?.trim()) {
+      if (listenGen.current !== gen) return;
+      const heard = data.text?.trim() ?? "";
+      if (heard) {
+        setInput(heard);
         setAgentStatus("");
-        void sendAgent(data.text.trim());
+        void sendAgent(heard);
+        setInput("");
       } else {
-        setAgentStatus(data.message || "No speech recognized.");
+        const note = data.message || "No speech recognized.";
+        setAgentStatus(note);
+        setAgentMessages((prev) => [...prev, { role: "assistant", content: note, toolEvents: [] }]);
       }
     } catch {
-      setAgentStatus("The microphone did not answer.");
+      if (listenGen.current === gen) setAgentStatus("The microphone did not answer.");
     } finally {
-      setHearing(false);
+      window.clearInterval(poll);
+      if (listenGen.current === gen) {
+        setHearing(false);
+        voiceStopRef.current?.();
+        voiceStopRef.current = null;
+      }
     }
   }
 
@@ -1455,8 +1555,12 @@ export default function ChatWindow({
       <div className="fonia-dock" style={{ flexShrink: 0 }}>
         {hearing && (
           <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px 0" }} aria-live="polite">
-            <span className="fonia-wave" aria-hidden="true"><span /><span /><span /><span /></span>
-            <span className="fonia-mono">Listening</span>
+            <span className="fonia-wave is-live" aria-hidden="true">
+              {[0, 1, 2, 3].map((bar) => (
+                <span key={bar} style={{ height: `${4 + voiceLevel * (8 + bar * 4)}px` }} />
+              ))}
+            </span>
+            <span className="fonia-mono">{voiceLevel > 0.08 ? "Hearing you" : "No voice movement yet"}</span>
           </div>
         )}
         <div>
@@ -1506,8 +1610,7 @@ export default function ChatWindow({
               <button
                 onClick={() => {
                   stopAgentRun();
-                  agentRunningRef.current = false;
-                  setAgentRunning(false);
+                  stopHearing();
                 }}
                 className="fonia-btn"
               >
@@ -1534,7 +1637,7 @@ export default function ChatWindow({
           </div>
         )}
         <p className="fonia-hint" style={{ padding: "0 12px 8px" }}>
-          Enter sends. Shift+Enter adds a line. Ctrl+Enter steers. Ctrl+K opens commands.
+          Enter sends. Shift+Enter adds a line. Ctrl+Enter steers. Esc or Ctrl+C stops the run. Ctrl+K opens commands.
           {ollamaSource === "offline" ? " Model server offline." : agentRunning ? " This run stays open until the check passes, the work is blocked, or you press Stop." : ""}
         </p>
       </div>

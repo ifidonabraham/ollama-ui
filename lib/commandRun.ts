@@ -110,13 +110,56 @@ export function runProcessBounded(
   });
 }
 
+/**
+ * Quote a Windows path that contains a space.
+ * cd C:\Users\PC\A.I projects becomes cd "C:\Users\PC\A.I projects".
+ * A path that is already inside quotes is left as it is.
+ */
+export function quoteSpacedPaths(command: string): string {
+  const joined = command.replace(
+    /([A-Za-z]:\\(?:[^\\"\r\n]+\\)+)"([^"\r\n]+)"/g,
+    (_full, folder: string, name: string) => `"${folder}${name}"`
+  );
+  let out = "";
+  let index = 0;
+  while (index < joined.length) {
+    const mark = joined[index];
+    if (mark === '"' || mark === "'") {
+      const end = joined.indexOf(mark, index + 1);
+      const stop = end === -1 ? joined.length : end + 1;
+      out += joined.slice(index, stop);
+      index = stop;
+      continue;
+    }
+    const match = joined.slice(index).match(/^(?:[A-Za-z]:\\|\\\\)[^\r\n"'|&;<>]+/);
+    if (!match) {
+      out += mark;
+      index += 1;
+      continue;
+    }
+    let token = match[0];
+    const flagAt = token.search(/\s+-\w/);
+    let flags = "";
+    if (flagAt > 0) {
+      flags = token.slice(flagAt);
+      token = token.slice(0, flagAt);
+    }
+    const trimmed = token.replace(/\s+$/, "");
+    const rest = token.slice(trimmed.length);
+    out += /\s/.test(trimmed) ? `"${trimmed}"` : trimmed;
+    out += rest + flags;
+    index += match[0].length;
+  }
+  return out;
+}
+
 export function runCommandBounded(
   command: string,
   options: { cwd?: string; env?: NodeJS.ProcessEnv; idleMs?: number; totalMs?: number; maxBytes?: number } = {}
 ): Promise<CommandRunResult> {
   return runProcessBounded(
     "powershell.exe",
-    ["-NoProfile", "-NonInteractive", "-Command", command],
+    ["-NoProfile", "-NonInteractive", "-Command", quoteSpacedPaths(command)],
     {
       cwd: options.cwd,
       env: options.env,

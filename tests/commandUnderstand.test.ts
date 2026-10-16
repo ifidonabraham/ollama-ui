@@ -38,6 +38,8 @@ test("one sentence can carry several commands and a dangerous tail is refused", 
     "windows_update_status",
   ]);
   assert.equal(understandCommand("turn off the firewall and delete everything")?.safeToRun, false);
+  assert.equal(understandCommand("format the disk")?.safeToRun, false);
+  assert.equal(understandCommand("explain the format of a new chat"), null);
   assert.equal(understandCommand("create a website"), null);
 });
 

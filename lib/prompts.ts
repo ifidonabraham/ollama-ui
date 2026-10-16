@@ -7,7 +7,7 @@ export function toolCapabilityNote(): string {
   return `Computer tools run only when you make a real tool call. A sentence that names a tool does not run it.
 read_file, list_dir, and search_in_files read the workspace.
 write_file, patch_file, and delete_file change files.
-run_command runs PowerShell on this computer, including setup and install commands. A command with no output for 30 seconds is stopped. Try a different command instead of running that same command again. A command that keeps printing can run for up to 3 minutes.
+run_command runs PowerShell on this computer, including setup and install commands. A command with no output for 30 seconds is stopped. Try a different command instead of running that same command again. A path that contains a space must be one quoted path, for example cd "C:\Users\PC\A.I projects". A command that keeps printing can run for up to 3 minutes.
 read_document reads txt, md, pdf, docx, and pptx. The server extracts the text before you see it.
 sample_video splits a video with ffmpeg before any model sees it. Set interval_seconds to the gap between frames. A vision model then describes those frames. Call sample_video again when you want a different gap.
 launch_app opens an installed program by its name or its full exe path, such as blender. Say that it opened only when the tool result says Started. A named shape in Blender is built by Blender through bpy and saved as a .blend file. Do not claim a mesh exists unless that result names the file. Do not type into the Blender window.

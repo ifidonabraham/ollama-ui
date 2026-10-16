@@ -1,0 +1,8 @@
+{
+  "/api/fonia/connections/route": "app/api/fonia/connections/route.js",
+  "/api/fonia/heard/route": "app/api/fonia/heard/route.js",
+  "/api/fonia/settings/route": "app/api/fonia/settings/route.js",
+  "/api/models/route": "app/api/models/route.js",
+  "/api/sessions/route": "app/api/sessions/route.js",
+  "/page": "app/page.js"
+}

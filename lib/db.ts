@@ -184,6 +184,13 @@ export function createSession(
   return getSession(id)!;
 }
 
+/** The first message names a chat. One line, short enough for the sidebar. */
+export function sessionTitleFromMessage(text: string): string {
+  const line = text.replace(/\s+/g, " ").trim();
+  if (!line) return "New Chat";
+  return line.length > 42 ? `${line.slice(0, 42)}…` : line;
+}
+
 export function updateSession(
   id: string,
   fields: Partial<Pick<Session, "title" | "model" | "system_prompt">>

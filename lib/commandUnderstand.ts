@@ -13,7 +13,7 @@ export interface CommandPlan {
 }
 
 const SPLIT = /\s*(?:;|\bthen\b|\band then\b|\balso\b|\bplus\b|\bafter that\b|\band\b)\s*/i;
-const DANGEROUS = /\b(format|wipe|erase)\b|\bdelete\b.{0,40}\b(everything|all|disk|drive|files)\b|\bremove-item\b|\brm\s+-rf\b/i;
+const DANGEROUS = /\bformat\b.{0,30}\b(?:disk|drive|volume|partition|[a-z]:)\b|\b(?:wipe|erase)\b.{0,30}\b(?:disk|drive|volume|partition|everything|all)\b|\bdelete\b.{0,40}\b(?:everything|all|disk|drive|files)\b|\bremove-item\b|\brm\s+-rf\b/i;
 const CARRY = /^(check|show|turn off|turn on|enable|disable|start|stop)\b/i;
 
 /** Split one sentence into the PC commands inside it. A clause that is not a command is leftover. */

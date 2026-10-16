@@ -48,7 +48,7 @@ export function getJob(id: string): AgentJob | undefined {
   if (current) return current;
   const stored = getStoredAgentJob(id);
   if (!stored) return undefined;
-  return { ...stored, model: stored.model || undefined, role: stored.role || undefined };
+  return { ...stored, status: stored.status as JobStatus, model: stored.model || undefined, role: stored.role || undefined };
 }
 
 export function updateJob(id: string, patch: Partial<Omit<AgentJob, "id" | "created_at">>): AgentJob | undefined {

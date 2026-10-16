@@ -472,7 +472,7 @@ export default function Home() {
     { id: "terminal", label: "Terminal" },
   ];
   const showChat = activePanel === "chat" || activePanel === "split";
-  const showTerminal = activePanel === "terminal" || (terminalDock && activePanel !== "terminal");
+  const showTerminal = activePanel === "terminal" || terminalDock;
 
   function freeRam() {
     void fetch("/api/unload", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({}) }).then(() => fetchModels(true));
@@ -554,6 +554,8 @@ export default function Home() {
                 systemPrompt={systemPrompt}
                 onRemoveContextFile={removeContextFile}
                 onStopGeneration={stopGeneration}
+                sessionTitle={sessions.find((item) => item.id === activeSessionId)?.title}
+                onRenameSession={(title) => { if (activeSessionId) void renameSession(activeSessionId, title); }}
                 workspacePath={workspace?.path}
                 ollamaSource={ollamaSource}
               />

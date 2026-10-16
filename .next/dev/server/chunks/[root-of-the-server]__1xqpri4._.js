@@ -1,0 +1,474 @@
+module.exports = [
+"[externals]/child_process [external] (child_process, cjs)", ((__turbopack_context__, module, exports) => {
+
+var mod = __turbopack_context__.x("child_process", () => require("child_process"));
+
+module.exports = mod;
+}),
+"[externals]/fs [external] (fs, cjs)", ((__turbopack_context__, module, exports) => {
+
+var mod = __turbopack_context__.x("fs", () => require("fs"));
+
+module.exports = mod;
+}),
+"[externals]/next/dist/compiled/@opentelemetry/api [external] (next/dist/compiled/@opentelemetry/api, cjs)", ((__turbopack_context__, module, exports) => {
+
+var mod = __turbopack_context__.x("next/dist/compiled/@opentelemetry/api", () => require("next/dist/compiled/@opentelemetry/api"));
+
+module.exports = mod;
+}),
+"[externals]/next/dist/compiled/next-server/app-page-turbo.runtime.dev.js [external] (next/dist/compiled/next-server/app-page-turbo.runtime.dev.js, cjs)", ((__turbopack_context__, module, exports) => {
+
+var mod = __turbopack_context__.x("next/dist/compiled/next-server/app-page-turbo.runtime.dev.js", () => require("next/dist/compiled/next-server/app-page-turbo.runtime.dev.js"));
+
+module.exports = mod;
+}),
+"[externals]/next/dist/compiled/next-server/app-route-turbo.runtime.dev.js [external] (next/dist/compiled/next-server/app-route-turbo.runtime.dev.js, cjs)", ((__turbopack_context__, module, exports) => {
+
+var mod = __turbopack_context__.x("next/dist/compiled/next-server/app-route-turbo.runtime.dev.js", () => require("next/dist/compiled/next-server/app-route-turbo.runtime.dev.js"));
+
+module.exports = mod;
+}),
+"[externals]/next/dist/server/app-render/action-async-storage.external.js [external] (next/dist/server/app-render/action-async-storage.external.js, cjs)", ((__turbopack_context__, module, exports) => {
+
+var mod = __turbopack_context__.x("next/dist/server/app-render/action-async-storage.external.js", () => require("next/dist/server/app-render/action-async-storage.external.js"));
+
+module.exports = mod;
+}),
+"[externals]/next/dist/server/app-render/after-task-async-storage.external.js [external] (next/dist/server/app-render/after-task-async-storage.external.js, cjs)", ((__turbopack_context__, module, exports) => {
+
+var mod = __turbopack_context__.x("next/dist/server/app-render/after-task-async-storage.external.js", () => require("next/dist/server/app-render/after-task-async-storage.external.js"));
+
+module.exports = mod;
+}),
+"[externals]/next/dist/server/app-render/work-async-storage.external.js [external] (next/dist/server/app-render/work-async-storage.external.js, cjs)", ((__turbopack_context__, module, exports) => {
+
+var mod = __turbopack_context__.x("next/dist/server/app-render/work-async-storage.external.js", () => require("next/dist/server/app-render/work-async-storage.external.js"));
+
+module.exports = mod;
+}),
+"[externals]/next/dist/server/app-render/work-unit-async-storage.external.js [external] (next/dist/server/app-render/work-unit-async-storage.external.js, cjs)", ((__turbopack_context__, module, exports) => {
+
+var mod = __turbopack_context__.x("next/dist/server/app-render/work-unit-async-storage.external.js", () => require("next/dist/server/app-render/work-unit-async-storage.external.js"));
+
+module.exports = mod;
+}),
+"[externals]/next/dist/server/runtime-reacts.external.js [external] (next/dist/server/runtime-reacts.external.js, cjs)", ((__turbopack_context__, module, exports) => {
+
+var mod = __turbopack_context__.x("next/dist/server/runtime-reacts.external.js", () => require("next/dist/server/runtime-reacts.external.js"));
+
+module.exports = mod;
+}),
+"[externals]/next/dist/shared/lib/no-fallback-error.external.js [external] (next/dist/shared/lib/no-fallback-error.external.js, cjs)", ((__turbopack_context__, module, exports) => {
+
+var mod = __turbopack_context__.x("next/dist/shared/lib/no-fallback-error.external.js", () => require("next/dist/shared/lib/no-fallback-error.external.js"));
+
+module.exports = mod;
+}),
+"[externals]/node:stream [external] (node:stream, cjs)", ((__turbopack_context__, module, exports) => {
+
+var mod = __turbopack_context__.x("node:stream", () => require("node:stream"));
+
+module.exports = mod;
+}),
+"[externals]/path [external] (path, cjs)", ((__turbopack_context__, module, exports) => {
+
+var mod = __turbopack_context__.x("path", () => require("path"));
+
+module.exports = mod;
+}),
+"[externals]/util [external] (util, cjs)", ((__turbopack_context__, module, exports) => {
+
+var mod = __turbopack_context__.x("util", () => require("util"));
+
+module.exports = mod;
+}),
+"[project]/app/api/upload/route.ts [app-route] (ecmascript)", ((__turbopack_context__) => {
+"use strict";
+
+__turbopack_context__.s([
+    "POST",
+    ()=>POST
+]);
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$server$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/next/server.js [app-route] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$externals$5d2f$fs__$5b$external$5d$__$28$fs$2c$__cjs$29$__ = __turbopack_context__.i("[externals]/fs [external] (fs, cjs)");
+var __TURBOPACK__imported__module__$5b$externals$5d2f$path__$5b$external$5d$__$28$path$2c$__cjs$29$__ = __turbopack_context__.i("[externals]/path [external] (path, cjs)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$mediaTasks$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/lib/mediaTasks.ts [app-route] (ecmascript)");
+;
+;
+;
+;
+const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10 MB
+const MAX_DOC_SIZE = 500 * 1024; // 500 KB
+const MAX_OFFICE_SIZE = 20 * 1024 * 1024;
+const MAX_VIDEO_SIZE = 200 * 1024 * 1024;
+const VIDEO_EXTS = new Set([
+    ".mp4",
+    ".webm",
+    ".mov",
+    ".mkv"
+]);
+const VIDEO_TYPES = new Set([
+    "video/mp4",
+    "video/webm",
+    "video/quicktime",
+    "video/x-matroska"
+]);
+function saveUpload(buffer, ext) {
+    const dir = __TURBOPACK__imported__module__$5b$externals$5d2f$path__$5b$external$5d$__$28$path$2c$__cjs$29$__["default"].join(process.cwd(), ".data", "uploads");
+    __TURBOPACK__imported__module__$5b$externals$5d2f$fs__$5b$external$5d$__$28$fs$2c$__cjs$29$__["default"].mkdirSync(dir, {
+        recursive: true
+    });
+    const safeExt = /^\.[a-z0-9]+$/i.test(ext) ? ext.toLowerCase() : ".bin";
+    const dest = __TURBOPACK__imported__module__$5b$externals$5d2f$path__$5b$external$5d$__$28$path$2c$__cjs$29$__["default"].join(dir, `${Date.now()}-${Math.random().toString(16).slice(2)}${safeExt}`);
+    __TURBOPACK__imported__module__$5b$externals$5d2f$fs__$5b$external$5d$__$28$fs$2c$__cjs$29$__["default"].writeFileSync(dest, buffer);
+    return dest;
+}
+const IMAGE_TYPES = new Set([
+    "image/png",
+    "image/jpeg",
+    "image/jpg",
+    "image/gif",
+    "image/webp"
+]);
+const DOC_TEXT_TYPES = new Set([
+    "text/plain",
+    "text/markdown",
+    "text/csv",
+    "application/json",
+    "application/xml",
+    "text/html"
+]);
+// Text-extractable extensions (fallback when MIME is octet-stream)
+const TEXT_EXTS = new Set([
+    ".txt",
+    ".md",
+    ".mdx",
+    ".json",
+    ".csv",
+    ".xml",
+    ".html",
+    ".ts",
+    ".tsx",
+    ".js",
+    ".jsx",
+    ".py",
+    ".rs",
+    ".go",
+    ".css",
+    ".scss",
+    ".yaml",
+    ".yml",
+    ".toml",
+    ".sh",
+    ".sql"
+]);
+async function POST(req) {
+    try {
+        const formData = await req.formData();
+        const file = formData.get("file");
+        if (!file) {
+            return __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$server$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["NextResponse"].json({
+                error: "No file provided"
+            }, {
+                status: 400
+            });
+        }
+        const mimeType = file.type || "application/octet-stream";
+        const fileName = file.name || "unknown";
+        const ext = ("." + fileName.split(".").pop()).toLowerCase();
+        // ── Image ──────────────────────────────────────────────────────────────
+        if (IMAGE_TYPES.has(mimeType)) {
+            if (file.size > MAX_IMAGE_SIZE) {
+                return __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$server$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["NextResponse"].json({
+                    error: "Image too large (max 10 MB)"
+                }, {
+                    status: 413
+                });
+            }
+            const buffer = await file.arrayBuffer();
+            const base64 = Buffer.from(buffer).toString("base64");
+            // Return pure base64 (no data URI) — Ollama expects plain base64
+            return __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$server$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["NextResponse"].json({
+                type: "image",
+                name: fileName,
+                mimeType,
+                base64,
+                // Also provide data URI for preview in UI
+                dataUrl: `data:${mimeType};base64,${base64}`
+            });
+        }
+        const bytes = async ()=>Buffer.from(await file.arrayBuffer());
+        if (VIDEO_EXTS.has(ext) || VIDEO_TYPES.has(mimeType)) {
+            if (file.size > MAX_VIDEO_SIZE) {
+                return __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$server$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["NextResponse"].json({
+                    error: "Video too large (max 200 MB)"
+                }, {
+                    status: 413
+                });
+            }
+            const saved = saveUpload(await bytes(), VIDEO_EXTS.has(ext) ? ext : ".mp4");
+            return __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$server$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["NextResponse"].json({
+                type: "video",
+                name: fileName,
+                ext: ext || ".mp4",
+                path: saved
+            });
+        }
+        if (ext === ".pdf" || mimeType === "application/pdf") {
+            if (file.size > MAX_OFFICE_SIZE) {
+                return __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$server$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["NextResponse"].json({
+                    error: "PDF too large (max 20 MB)"
+                }, {
+                    status: 413
+                });
+            }
+            const text = (0, __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$mediaTasks$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["extractPdfText"])(await bytes());
+            return __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$server$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["NextResponse"].json({
+                type: "document",
+                name: fileName,
+                ext: ".pdf",
+                content: text || `No text could be read from ${fileName}. A scanned PDF has no text layer.`
+            });
+        }
+        if (ext === ".pptx" || mimeType === "application/vnd.openxmlformats-officedocument.presentationml.presentation") {
+            if (file.size > MAX_OFFICE_SIZE) {
+                return __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$server$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["NextResponse"].json({
+                    error: "Presentation too large (max 20 MB)"
+                }, {
+                    status: 413
+                });
+            }
+            const saved = saveUpload(await bytes(), ".pptx");
+            try {
+                const text = await (0, __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$mediaTasks$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["readPptxFile"])(saved);
+                return __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$server$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["NextResponse"].json({
+                    type: "document",
+                    name: fileName,
+                    ext: ".pptx",
+                    content: text || `No text found in ${fileName}.`
+                });
+            } catch (error) {
+                const message = error instanceof Error ? error.message : String(error);
+                return __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$server$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["NextResponse"].json({
+                    type: "document",
+                    name: fileName,
+                    ext: ".pptx",
+                    content: `Could not read ${fileName}. ${message}`
+                });
+            }
+        }
+        if (ext === ".docx" || mimeType === "application/vnd.openxmlformats-officedocument.wordprocessingml.document") {
+            if (file.size > MAX_OFFICE_SIZE) {
+                return __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$server$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["NextResponse"].json({
+                    error: "Document too large (max 20 MB)"
+                }, {
+                    status: 413
+                });
+            }
+            const saved = saveUpload(await bytes(), ".docx");
+            try {
+                const text = await (0, __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$mediaTasks$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["readDocxFile"])(saved);
+                return __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$server$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["NextResponse"].json({
+                    type: "document",
+                    name: fileName,
+                    ext: ".docx",
+                    content: text || `No text found in ${fileName}.`
+                });
+            } catch (error) {
+                const message = error instanceof Error ? error.message : String(error);
+                return __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$server$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["NextResponse"].json({
+                    type: "document",
+                    name: fileName,
+                    ext: ".docx",
+                    content: `Could not read ${fileName}. ${message}`
+                });
+            }
+        }
+        // ── Document / text file ───────────────────────────────────────────────
+        const isTextMime = DOC_TEXT_TYPES.has(mimeType);
+        const isTextExt = TEXT_EXTS.has(ext);
+        if (isTextMime || isTextExt || mimeType === "application/octet-stream") {
+            if (file.size > MAX_DOC_SIZE) {
+                return __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$server$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["NextResponse"].json({
+                    error: "Document too large (max 500 KB)"
+                }, {
+                    status: 413
+                });
+            }
+            try {
+                const text = await file.text();
+                return __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$server$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["NextResponse"].json({
+                    type: "document",
+                    name: fileName,
+                    ext,
+                    content: text
+                });
+            } catch  {
+                return __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$server$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["NextResponse"].json({
+                    error: "Could not read file as text"
+                }, {
+                    status: 415
+                });
+            }
+        }
+        return __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$server$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["NextResponse"].json({
+            error: `Unsupported file type: ${mimeType}`
+        }, {
+            status: 415
+        });
+    } catch (err) {
+        console.error("[upload]", err);
+        return __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$server$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["NextResponse"].json({
+            error: "Internal server error"
+        }, {
+            status: 500
+        });
+    }
+}
+}),
+"[project]/lib/mediaTasks.ts [app-route] (ecmascript)", ((__turbopack_context__) => {
+"use strict";
+
+__turbopack_context__.s([
+    "extractDocxXml",
+    ()=>extractDocxXml,
+    "extractPdfText",
+    ()=>extractPdfText,
+    "extractPptxXml",
+    ()=>extractPptxXml,
+    "frameIntervalSeconds",
+    ()=>frameIntervalSeconds,
+    "parseAppRequest",
+    ()=>parseAppRequest,
+    "readDocumentFile",
+    ()=>readDocumentFile,
+    "readDocxFile",
+    ()=>readDocxFile,
+    "readPptxFile",
+    ()=>readPptxFile,
+    "resolveInstalledApp",
+    ()=>resolveInstalledApp,
+    "videoIntervalFromText",
+    ()=>videoIntervalFromText,
+    "videoPathFromText",
+    ()=>videoPathFromText
+]);
+var __TURBOPACK__imported__module__$5b$externals$5d2f$child_process__$5b$external$5d$__$28$child_process$2c$__cjs$29$__ = __turbopack_context__.i("[externals]/child_process [external] (child_process, cjs)");
+var __TURBOPACK__imported__module__$5b$externals$5d2f$util__$5b$external$5d$__$28$util$2c$__cjs$29$__ = __turbopack_context__.i("[externals]/util [external] (util, cjs)");
+var __TURBOPACK__imported__module__$5b$externals$5d2f$fs__$5b$external$5d$__$28$fs$2c$__cjs$29$__ = __turbopack_context__.i("[externals]/fs [external] (fs, cjs)");
+var __TURBOPACK__imported__module__$5b$externals$5d2f$path__$5b$external$5d$__$28$path$2c$__cjs$29$__ = __turbopack_context__.i("[externals]/path [external] (path, cjs)");
+;
+;
+;
+;
+const execFileAsync = (0, __TURBOPACK__imported__module__$5b$externals$5d2f$util__$5b$external$5d$__$28$util$2c$__cjs$29$__["promisify"])(__TURBOPACK__imported__module__$5b$externals$5d2f$child_process__$5b$external$5d$__$28$child_process$2c$__cjs$29$__["execFile"]);
+function frameIntervalSeconds(requested, fallback = 1) {
+    const value = typeof requested === "number" ? requested : Number.parseFloat(String(requested ?? ""));
+    if (!Number.isFinite(value)) return fallback;
+    return Math.min(10, Math.max(0.5, value));
+}
+function videoIntervalFromText(text) {
+    const match = text.match(/every\s+(\d+(?:\.\d+)?)\s*(?:s|sec|secs|second|seconds)\b/i);
+    return frameIntervalSeconds(match?.[1], 1);
+}
+function videoPathFromText(text) {
+    const match = text.match(/Video:\s*([^\r\n]+?\.(?:mp4|webm|mov|mkv))/i);
+    return match?.[1]?.trim() ?? null;
+}
+function extractPdfText(buffer) {
+    const raw = buffer.toString("latin1");
+    const pieces = [];
+    const pattern = /\((?:\\\)|\\.|[^)]){2,}\)\s*Tj/g;
+    for (const match of raw.match(pattern) ?? []){
+        const inner = match.slice(1, match.lastIndexOf(")"));
+        const text = inner.replace(/\\n/g, "\n").replace(/\\r/g, "").replace(/\\([()\\])/g, "$1").replace(/[^\x09\x0A\x0D\x20-\x7E]/g, " ").trim();
+        if (text) pieces.push(text);
+    }
+    return pieces.join(" ").replace(/[ \t]{2,}/g, " ").trim();
+}
+function extractDocxXml(xml) {
+    return xml.replace(/<w:p[^>]*>/g, "\n").replace(/<[^>]+>/g, "").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/\n{3,}/g, "\n\n").trim();
+}
+function extractPptxXml(xml) {
+    return extractDocxXml(xml.replace(/<\/a:p>/g, "\n"));
+}
+function parseAppRequest(name) {
+    const target = name.trim().replace(/^["']|["']$/g, "");
+    if (!target) return {
+        ok: false,
+        reason: "No application was named."
+    };
+    if (/[;&|<>`$]/.test(target)) return {
+        ok: false,
+        reason: "The application name cannot include a shell command."
+    };
+    if (/shutdown|format|Remove-Item|Restart-Computer/i.test(target)) return {
+        ok: false,
+        reason: "That action is blocked."
+    };
+    return {
+        ok: true,
+        target
+    };
+}
+function resolveInstalledApp(name) {
+    const target = name.trim().replace(/^["']|["']$/g, "");
+    if (/[\\/]/.test(target)) return target;
+    if (target.toLowerCase().replace(/\.exe$/i, "") !== "blender") return target;
+    const root = "C:\\Program Files\\Blender Foundation";
+    if (!__TURBOPACK__imported__module__$5b$externals$5d2f$fs__$5b$external$5d$__$28$fs$2c$__cjs$29$__["default"].existsSync(root)) return target;
+    const direct = __TURBOPACK__imported__module__$5b$externals$5d2f$path__$5b$external$5d$__$28$path$2c$__cjs$29$__["default"].join(root, "blender.exe");
+    if (__TURBOPACK__imported__module__$5b$externals$5d2f$fs__$5b$external$5d$__$28$fs$2c$__cjs$29$__["default"].existsSync(direct)) return direct;
+    const versions = __TURBOPACK__imported__module__$5b$externals$5d2f$fs__$5b$external$5d$__$28$fs$2c$__cjs$29$__["default"].readdirSync(root).filter((entry)=>entry.toLowerCase().startsWith("blender")).sort().reverse();
+    for (const version of versions){
+        const exe = __TURBOPACK__imported__module__$5b$externals$5d2f$path__$5b$external$5d$__$28$path$2c$__cjs$29$__["default"].join(root, version, "blender.exe");
+        if (__TURBOPACK__imported__module__$5b$externals$5d2f$fs__$5b$external$5d$__$28$fs$2c$__cjs$29$__["default"].existsSync(exe)) return exe;
+    }
+    return target;
+}
+async function readZipEntries(filePath, entryMatch) {
+    const safe = filePath.replace(/'/g, "''");
+    const command = [
+        "Add-Type -AssemblyName System.IO.Compression.FileSystem",
+        `$zip=[System.IO.Compression.ZipFile]::OpenRead('${safe}')`,
+        `$entries=$zip.Entries | Where-Object { $_.FullName -like '${entryMatch}' } | Sort-Object FullName`,
+        "$parts=New-Object System.Collections.Generic.List[string]",
+        "foreach ($entry in $entries) {",
+        "  $reader=New-Object System.IO.StreamReader($entry.Open())",
+        "  $parts.Add($reader.ReadToEnd())",
+        "  $reader.Close()",
+        "}",
+        "$zip.Dispose()",
+        "$parts -join [char]10"
+    ].join("; ");
+    const { stdout } = await execFileAsync("powershell.exe", [
+        "-NoProfile",
+        "-NonInteractive",
+        "-Command",
+        command
+    ], {
+        maxBuffer: 2_000_000
+    });
+    return stdout || "";
+}
+async function readDocxFile(filePath) {
+    return extractDocxXml(await readZipEntries(filePath, "word/document.xml"));
+}
+async function readPptxFile(filePath) {
+    return extractPptxXml(await readZipEntries(filePath, "ppt/slides/slide*.xml"));
+}
+function readDocumentFile(filePath) {
+    const lower = filePath.toLowerCase();
+    if (!__TURBOPACK__imported__module__$5b$externals$5d2f$fs__$5b$external$5d$__$28$fs$2c$__cjs$29$__["default"].existsSync(filePath)) return `Error: File not found: ${filePath}`;
+    if (lower.endsWith(".pdf")) {
+        const text = extractPdfText(__TURBOPACK__imported__module__$5b$externals$5d2f$fs__$5b$external$5d$__$28$fs$2c$__cjs$29$__["default"].readFileSync(filePath));
+        return text || `Error: No text could be read from ${filePath}. A scanned PDF has no text layer.`;
+    }
+    if (lower.endsWith(".docx") || lower.endsWith(".pptx")) return "";
+    return __TURBOPACK__imported__module__$5b$externals$5d2f$fs__$5b$external$5d$__$28$fs$2c$__cjs$29$__["default"].readFileSync(filePath, "utf-8").slice(0, 20_000);
+}
+}),
+];
+
+//# sourceMappingURL=%5Broot-of-the-server%5D__1xqpri4._.js.map

@@ -119,6 +119,17 @@ export function pickFallbackCoder(models: string[], freeMb: number, needsWrite: 
   return null;
 }
 
+/** A missing runner is not a missing model. Only a model-not-found error means it is not installed. */
+export function describeModelFailure(model: string, message: string): string | null {
+  if (/llama-server/i.test(message) && /not found/i.test(message)) {
+    return `${model} is installed. Ollama could not start it because llama-server.exe is missing from the Ollama folder. This PC is using the local server.`;
+  }
+  if (/model ['"][^'"]+['"] not found/i.test(message) || (/\bmodel\b/i.test(message) && /not found/i.test(message) && !/llama-server/i.test(message))) {
+    return `${model} is not installed. Retry it after installing it, or choose a different model.`;
+  }
+  return null;
+}
+
 export function fallbackReason(model: string, kind: "timeout" | "tools" | "no_tool" | "planner", waitedSeconds?: number): string {
   if (kind === "timeout") {
     const seconds = waitedSeconds && waitedSeconds > 0 ? waitedSeconds : 120;

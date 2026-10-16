@@ -1,0 +1,19 @@
+{
+  "micMode": "push",
+  "understandFirst": true,
+  "askBeforeConsequential": true,
+  "holdGoal": true,
+  "lookAfterUiEdit": true,
+  "brainWhenRamFits": true,
+  "closeExtraApps": true,
+  "strongCoderOvernight": true,
+  "whisperFallback": true,
+  "showSteps": true,
+  "internetAccess": true,
+  "connectExternalTools": true,
+  "connectBlender": true,
+  "connectMetatrader": true,
+  "connectVm": true,
+  "connectCorel": false,
+  "connectAndroidStudio": false
+}
